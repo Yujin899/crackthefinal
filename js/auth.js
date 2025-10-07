@@ -19,8 +19,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // =================================================================
     // This listener checks if a user is already logged in.
     // If they are, it redirects them away from the auth page.
+    // Guard flag to avoid racing with the sign-up flow which creates the user doc
+    let isSigningUp = false;
     onAuthStateChanged(auth, (user) => {
         if (user) {
+            if (isSigningUp) {
+                // We're in the middle of sign-up; let the sign-up handler perform the redirect
+                console.log('User signed in during sign-up flow; deferring redirect until doc write completes.');
+                return;
+            }
             // User is signed in, see https://firebase.google.com/docs/auth/web/start
             console.log('User is already logged in. Redirecting to home.html...');
             window.location.href = '/home.html';
@@ -104,8 +111,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
+            // mark that we're in the sign-up process so the global auth listener won't redirect early
+            isSigningUp = true;
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             const user = userCredential.user;
+            // Ensure the Firestore user document is created before leaving this page
             await setDoc(doc(db, "users", user.uid), {
                 uid: user.uid,
                 username: name,
@@ -114,8 +124,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 isAdmin: false,
                 createdAt: new Date()
             });
+            // sign-up complete; clear flag and redirect
+            isSigningUp = false;
             window.location.href = '/home.html';
         } catch (error) {
+            // clear flag so listener can behave normally if an error occurred
+            isSigningUp = false;
             hideLoadingState(signUpButton, signUpButtonText);
             console.error("Sign up error:", error.code, error.message);
             if (error.code === 'auth/email-already-in-use') { showToast('This email is already registered.'); } 

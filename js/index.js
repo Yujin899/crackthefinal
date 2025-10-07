@@ -2,7 +2,7 @@
 
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
-import { doc, getDoc, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+import { doc, getDoc, setDoc, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 import { showLoader, hideLoader } from './loader.js';
 import Shop from './shop.js';
 // Feature flag: toggle to true when the shop is ready for production
@@ -130,8 +130,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 usernameHeader.textContent = userData.username;
                 avatarHeader.innerHTML = `<img src="${userData.avatar}" alt="User Avatar" class="w-10 h-10 rounded-full object-cover">`;
             } else {
-                console.error("No user data found in Firestore!");
-                usernameHeader.textContent = "Guest";
+                console.warn("No user data found in Firestore! Creating default user document.");
+                // Create a minimal user document for legacy/auth-only users
+                const defaultUsername = user.displayName || (user.email ? user.email.split('@')[0] : 'Guest');
+                try {
+                    await setDoc(userDocRef, {
+                        uid: user.uid,
+                        username: defaultUsername,
+                        email: user.email || '',
+                        avatar: '',
+                        isAdmin: false,
+                        createdAt: new Date()
+                    });
+                    usernameHeader.textContent = defaultUsername;
+                    avatarHeader.innerHTML = '';
+                } catch (writeErr) {
+                    console.error('Failed to create default user doc:', writeErr);
+                    usernameHeader.textContent = 'Guest';
+                }
             }
         } catch (error) {
             console.error("Error fetching user data:", error);
@@ -140,9 +156,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Auth State Checker (Route Guard)
     onAuthStateChanged(auth, (user) => {
-        // Hide initial inline loader as soon as auth state is known
-        try { const initial = document.getElementById('initial-loader'); if (initial) initial.style.display = 'none'; } catch (e) {}
-
         if (user) {
             fetchAndDisplayUserData(user);
             displaySubjects();
