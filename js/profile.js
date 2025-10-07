@@ -370,7 +370,7 @@ document.addEventListener('DOMContentLoaded', () => {
             fetchAndDisplayUserData(user);
         } else {
             // User is not signed in, redirect them to the auth page
-            window.location.href = '/auth.html';
+            window.location.href = '/index.html';
         }
     });
 
@@ -380,7 +380,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await signOut(auth);
             console.log("User signed out successfully.");
             // Redirect to auth page after sign out
-            window.location.href = '/auth.html';
+            window.location.href = '/index.html';
         } catch (error) {
             console.error("Error signing out:", error);
         }

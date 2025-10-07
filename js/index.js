@@ -162,7 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } else {
             // Redirect to auth page after a short delay so users see the loader briefly
-            setTimeout(() => { window.location.href = '/auth.html'; }, 120);
+            setTimeout(() => { window.location.href = '/index.html'; }, 120);
         }
     });
 

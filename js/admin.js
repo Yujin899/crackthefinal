@@ -21,13 +21,13 @@ document.addEventListener('DOMContentLoaded', () => {
             if (userDoc.exists() && userDoc.data().isAdmin === true) {
                 console.log("Welcome Admin! Initializing page.");
                 initializeApp();
-            } else {
+                } else {
                 console.log("Access Denied: User is not an admin. Redirecting...");
-                window.location.href = '/index.html';
+                window.location.href = '/home.html';
             }
         } else {
             console.log("User not logged in. Redirecting...");
-            window.location.href = '/auth.html';
+            window.location.href = '/index.html';
         }
     });
 

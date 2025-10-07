@@ -327,7 +327,7 @@ document.addEventListener('DOMContentLoaded', () => {
       currentUser = user;
       loadQuestions();
     } else {
-      window.location.href = '/auth.html';
+      window.location.href = '/index.html';
     }
   });
 });

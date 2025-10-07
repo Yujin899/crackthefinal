@@ -21,8 +21,8 @@ document.addEventListener('DOMContentLoaded', () => {
     onAuthStateChanged(auth, (user) => {
         if (user) {
             // User is signed in, see https://firebase.google.com/docs/auth/web/start
-            console.log('User is already logged in. Redirecting to index.html...');
-            window.location.href = '/index.html';
+            console.log('User is already logged in. Redirecting to home.html...');
+            window.location.href = '/home.html';
         } else {
             // User is signed out, so they can stay on the auth page.
             console.log('No user signed in. Displaying auth page.');
@@ -75,7 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 isAdmin: false,
                 createdAt: new Date()
             });
-            window.location.href = '/index.html';
+            window.location.href = '/home.html';
         } catch (error) {
             hideLoadingState(signUpButton, signUpButtonText);
             console.error("Sign up error:", error.code, error.message);
@@ -95,7 +95,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             await signInWithEmailAndPassword(auth, email, password);
-            window.location.href = '/index.html';
+            window.location.href = '/home.html';
         } catch (error) {
             hideLoadingState(signInButton, signInButtonText);
             console.error("Sign in error:", error.code, error.message);

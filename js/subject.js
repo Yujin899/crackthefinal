@@ -167,7 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
             fetchAndDisplayUserData(user);
             displaySubjectDetails(user);
         } else {
-            window.location.href = '/auth.html';
+            window.location.href = '/index.html';
         }
     });
 
