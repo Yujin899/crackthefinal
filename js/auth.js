@@ -12,6 +12,7 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('auth.js DOMContentLoaded');
 
     // =================================================================
     //  NEW: Check Auth State on Page Load
@@ -34,22 +35,53 @@ document.addEventListener('DOMContentLoaded', () => {
     // Form elements and inputs
     const signInForm = document.getElementById('signInForm');
     const signUpForm = document.getElementById('signUpForm');
-    const signUpButton = signUpForm.querySelector('button[type="submit"]');
-    const signInButton = signInForm.querySelector('button[type="submit"]');
-    const signUpButtonText = signUpButton.innerHTML;
-    const signInButtonText = signInButton.innerHTML;
+    if (!signInForm) console.error('signInForm element not found');
+    if (!signUpForm) console.error('signUpForm element not found');
+    const signUpButton = signUpForm ? signUpForm.querySelector('button[type="submit"]') : null;
+    const signInButton = signInForm ? signInForm.querySelector('button[type="submit"]') : null;
+    const signUpButtonText = signUpButton ? signUpButton.innerHTML : '';
+    const signInButtonText = signInButton ? signInButton.innerHTML : '';
     // ... rest of the elements
 
-    // --- HELPER FUNCTIONS (No Changes Here) ---
-    const spinnerSVG = `<svg class="spinner h-5 w-5 text-white" ...>...</svg>`; // (The full SVG string)
-    const showLoadingState = (button) => { /* ... Unchanged ... */ };
-    const hideLoadingState = (button, originalText) => { /* ... Unchanged ... */ };
-    const showToast = (message, type = 'error') => { /* ... Unchanged ... */ };
+    // --- HELPER FUNCTIONS ---
+    const spinnerSVG = `<svg class="spinner h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path></svg>`;
+
+    const showLoadingState = (button) => {
+        try {
+            if (!button) return;
+            button.disabled = true;
+            // preserve original text in data attribute
+            if (!button.dataset.originalText) button.dataset.originalText = button.innerHTML;
+            button.innerHTML = spinnerSVG;
+        } catch (e) { console.error('showLoadingState error', e); }
+    };
+
+    const hideLoadingState = (button, originalText) => {
+        try {
+            if (!button) return;
+            button.disabled = false;
+            const orig = originalText || button.dataset.originalText || '';
+            button.innerHTML = orig;
+        } catch (e) { console.error('hideLoadingState error', e); }
+    };
+
+    const showToast = (message, type = 'error') => {
+        try {
+            const container = document.getElementById('toast-container');
+            if (!container) return console.warn('Toast container missing');
+            const toast = document.createElement('div');
+            toast.className = 'toast ' + (type === 'error' ? 'toast-error' : '');
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => { toast.remove(); }, 6000);
+        } catch (e) { console.error('showToast error', e); }
+    };
 
     // --- FIREBASE AUTHENTICATION LOGIC (No Changes Here) ---
 
     // Sign Up Handler
-    signUpForm.addEventListener('submit', async (e) => {
+    if (signUpForm) {
+        signUpForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         showLoadingState(signUpButton);
 
@@ -60,6 +92,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const emailParts = email.split('@');
         if (emailParts.length !== 2 || emailParts[1] !== 'crackthefinal.de') {
             showToast('Invalid Email. Must use @crackthefinal.de');
+            hideLoadingState(signUpButton, signUpButtonText);
+            return;
+        }
+
+        // Client-side password strength/length check to avoid Firebase weak-password errors
+        if (!password || password.length < 6) {
+            showToast('Password must be at least 6 characters long.');
             hideLoadingState(signUpButton, signUpButtonText);
             return;
         }
@@ -83,10 +122,14 @@ document.addEventListener('DOMContentLoaded', () => {
             else if (error.code === 'auth/weak-password') { showToast('Password should be at least 6 characters.'); } 
             else { showToast('Failed to create account. Please try again.'); }
         }
-    });
+        });
+    } else {
+        console.error('Sign up form missing; cannot bind submit handler');
+    }
 
     // Sign In Handler
-    signInForm.addEventListener('submit', async (e) => {
+    if (signInForm) {
+        signInForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         showLoadingState(signInButton);
         
@@ -102,7 +145,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (error.code === 'auth/invalid-credential') { showToast('Incorrect email or password.'); } 
             else { showToast('Failed to sign in. Please try again.'); }
         }
-    });
+        });
+    } else {
+        console.error('Sign in form missing; cannot bind submit handler');
+    }
 
 
     // --- All other functions pasted below for completeness ---
@@ -195,6 +241,10 @@ document.addEventListener('DOMContentLoaded', () => {
             showForm.classList.add('slide-enter-to');
         }, 300);
     };
-    showSignUpButton.addEventListener('click', () => switchForm(signUpForm, signInForm));
-    showSignInButton.addEventListener('click', () => switchForm(signInForm, signUpForm));
+    if (showSignUpButton) {
+        showSignUpButton.addEventListener('click', () => { console.log('showSignUp clicked'); switchForm(signUpForm, signInForm); });
+    } else console.error('showSignUpButton not found');
+    if (showSignInButton) {
+        showSignInButton.addEventListener('click', () => { console.log('showSignIn clicked'); switchForm(signInForm, signUpForm); });
+    } else console.error('showSignInButton not found');
 });
