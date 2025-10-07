@@ -55,7 +55,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Update header
                 usernameHeader.textContent = userData.username;
-                avatarHeader.innerHTML = `<img src="${userData.avatar}" alt="User Avatar" class="w-10 h-10 rounded-full object-cover">`;
+                // avatarHeader on this page is now a text 'Return to Home' span; only overwrite it if it's a container div
+                try {
+                    if (avatarHeader && avatarHeader.tagName && avatarHeader.tagName.toLowerCase() !== 'span') {
+                        avatarHeader.innerHTML = `<img src="${userData.avatar}" alt="User Avatar" class="w-10 h-10 rounded-full object-cover">`;
+                    }
+                } catch (e) { /* ignore DOM update if avatarHeader is not present */ }
 
                 // Update profile card
                 profileUsername.textContent = userData.username;
@@ -105,7 +110,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             // update UI
                             const img = document.getElementById('profile-avatar-img');
                             if (img) img.src = avatarUrl;
-                            document.getElementById('avatar-header').innerHTML = `<img src="${avatarUrl}" alt="User Avatar" class="w-10 h-10 rounded-full object-cover">`;
+                            // Only update the header avatar if it's a container (not our 'Return to Home' span)
+                            const hdr = document.getElementById('avatar-header');
+                            if (hdr && hdr.tagName && hdr.tagName.toLowerCase() !== 'span') {
+                                hdr.innerHTML = `<img src="${avatarUrl}" alt="User Avatar" class="w-10 h-10 rounded-full object-cover">`;
+                            }
                         } catch (err) {
                             console.error('Error uploading avatar:', err);
                             alert('Error uploading avatar: ' + (err.message || err));
@@ -157,7 +166,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         await updateDoc(userDocRef, { avatar: null, avatarPublicId: null });
                         const initial = (userData.username || 'U').charAt(0).toUpperCase();
                         profileAvatar.innerHTML = `<div class="w-24 h-24 bg-slate-200 rounded-full flex items-center justify-center text-2xl font-bold text-slate-600">${initial}</div>`;
-                        avatarHeader.innerHTML = `<div class="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center text-sm font-bold text-slate-600">${initial}</div>`;
+                        try {
+                            if (avatarHeader && avatarHeader.tagName && avatarHeader.tagName.toLowerCase() !== 'span') {
+                                avatarHeader.innerHTML = `<div class="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center text-sm font-bold text-slate-600">${initial}</div>`;
+                            }
+                        } catch (e) { /* ignore */ }
                         deleteAvatarBtn.classList.add('hidden');
                     } catch (err) {
                         console.error('Error removing avatar:', err);
