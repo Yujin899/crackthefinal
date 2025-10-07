@@ -29,6 +29,17 @@
 </head>
 <body class="text-gray-800">
 
+    <!-- Initial inline loader shown immediately while scripts/auth load -->
+    <div id="initial-loader" class="fixed inset-0 bg-white flex items-center justify-center z-50">
+        <div class="text-center">
+            <svg class="mx-auto animate-spin h-12 w-12 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+            <div class="mt-4 text-gray-600">Checking authentication…</div>
+        </div>
+    </div>
+
     <header class="bg-white shadow-md p-4 sticky top-0 z-50">
         <div class="container mx-auto max-w-5xl flex justify-between items-center">
             

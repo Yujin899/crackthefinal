@@ -140,6 +140,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Auth State Checker (Route Guard)
     onAuthStateChanged(auth, (user) => {
+        // Hide initial inline loader as soon as auth state is known
+        try { const initial = document.getElementById('initial-loader'); if (initial) initial.style.display = 'none'; } catch (e) {}
+
         if (user) {
             fetchAndDisplayUserData(user);
             displaySubjects();
@@ -158,7 +161,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         } else {
-            window.location.href = '/auth.html';
+            // Redirect to auth page after a short delay so users see the loader briefly
+            setTimeout(() => { window.location.href = '/auth.html'; }, 120);
         }
     });
 
