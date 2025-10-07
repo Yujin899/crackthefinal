@@ -1,0 +1,31 @@
+{
+  "name": "crackthefinal",
+  "version": "1.0.0",
+  "description": "A modern web app for dental students to practice final exam-style quizzes.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Yujin899/crackthefinal.git"
+  },
+  "keywords": [
+    "tailwind",
+    "dental",
+    "quiz",
+    "exams",
+    "students",
+    "crackthefinal"
+  ],
+  "author": "Kareem El-Gohary",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Yujin899/crackthefinal/issues"
+  },
+  "homepage": "https://github.com/Yujin899/crackthefinal#readme",
+  "dependencies": {
+    "@tailwindcss/cli": "^4.1.14",
+    "tailwindcss": "^4.1.14"
+  }
+}

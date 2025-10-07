@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CrackTheFinal - Admin Panel</title>
+    <link href="./dist/output.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Poppins', sans-serif; background-color: #f1f5f9; }
+        .admin-card { background-color: white; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
+        .form-label { font-weight: 600; color: #475569; }
+        .form-input { width: 100%; padding: 0.75rem; border: 1px solid #cbd5e1; border-radius: 0.5rem; }
+        .submit-btn { 
+            position: relative; 
+            overflow: hidden; 
+            width: 100%; 
+            background-color: #3b82f6; 
+            color: white; 
+            font-weight: 600; 
+            padding: 0.75rem; 
+            border-radius: 0.5rem; 
+            transition: background-color 0.3s; 
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .submit-btn:hover { background-color: #2563eb; }
+        .submit-btn:disabled { background-color: #9ca3af; color: #e5e7eb; cursor: not-allowed; }
+    </style>
+</head>
+<body class="p-4 sm:p-8">
+    <script type="module">
+        import Theme from './js/theme.js';
+        Theme.initTheme();
+    </script>
+
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-center justify-between mb-8">
+            <h1 class="text-3xl font-bold text-slate-800">Admin Panel</h1>
+            <a href="/index.html" class="text-blue-600 hover:underline">Go to Main Site</a>
+        </div>
+
+        <div class="admin-card p-6 mb-8">
+            <h2 class="text-2xl font-bold mb-6 border-b pb-4">1. Add New Subject</h2>
+            <form id="add-subject-form" class="space-y-4">
+                <div>
+                    <label for="subject-name" class="form-label block mb-2">Subject Name</label>
+                    <input type="text" id="subject-name" class="form-input auth-input" placeholder="e.g., Oral Histology" required>
+                </div>
+                <div>
+                    <label for="small-cover" class="form-label block mb-2">Small Cover (for cards)</label>
+                    <input type="file" id="small-cover" class="form-input auth-input" accept="image/*" required>
+                </div>
+                <div>
+                    <label for="large-cover" class="form-label block mb-2">Large Cover (for subject page)</label>
+                    <input type="file" id="large-cover" class="form-input auth-input" accept="image/*" required>
+                </div>
+                <button type="submit" id="add-subject-btn" class="submit-btn">
+                    <span class="relative z-10">Add Subject</span>
+                    <div id="add-subject-progress" class="absolute top-0 left-0 h-full bg-blue-700 transition-all duration-300 ease-linear" style="width: 0%;"></div>
+                </button>
+                <p id="subject-status" class="text-center text-green-600 mt-2 h-4"></p>
+            </form>
+        </div>
+
+        <div class="admin-card p-6 mb-8">
+            <h2 class="text-2xl font-bold mb-6 border-b pb-4">2. Add Quiz to Subject</h2>
+            <form id="add-quiz-form" class="space-y-4">
+                <div>
+                    <label for="subject-select-for-quiz" class="form-label block mb-2">Select Subject</label>
+                    <select id="subject-select-for-quiz" class="form-input auth-input" required>
+                        <option value="">Loading Subjects...</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="quiz-name" class="form-label block mb-2">Quiz Name</label>
+                    <input type="text" id="quiz-name" class="form-input auth-input" placeholder="e.g., Quiz on Lecture 1" required>
+                </div>
+                <button type="submit" class="submit-btn">Add Quiz</button>
+                <p id="quiz-status" class="text-center text-green-600 mt-2 h-4"></p>
+            </form>
+        </div>
+
+        <div class="admin-card p-6">
+            <h2 class="text-2xl font-bold mb-6 border-b pb-4">3. Upload Questions (.json file)</h2>
+            <form id="add-question-form" class="space-y-4">
+                <div>
+                    <label for="subject-select-for-question" class="form-label block mb-2">Select Subject</label>
+                    <select id="subject-select-for-question" class="form-input auth-input" required>
+                        <option value="">Loading Subjects...</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="quiz-select-for-question" class="form-label block mb-2">Select Quiz</label>
+                    <select id="quiz-select-for-question" class="form-input auth-input" required>
+                        <option value="">Select a subject first</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="questions-json-file" class="form-label block mb-2">Questions JSON File</label>
+                    <input type="file" id="questions-json-file" class="form-input auth-input" accept=".json" required>
+                </div>
+                <button type="submit" class="submit-btn">Upload Questions</button>
+                <p id="question-status" class="text-center text-green-600 mt-2 h-4"></p>
+            </form>
+        </div>
+    </div>
+    <script type="module" src="./js/admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Quiz - CrackTheFinal</title>
+  <link href="./dist/output.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style> body { font-family: 'Poppins', sans-serif; background-color: #f3fbff; } </style>
+  <style>
+    /* Answers body: subtle translucent panel with centered logo behind */
+    #answers-body {
+      background-repeat: no-repeat;
+      background-position: center center;
+      background-size: 260px; /* larger watermark centered */
+      border-radius: 8px;
+    }
+
+    @media (max-width: 640px) {
+      #answers-body {
+        background-size: 180px; /* scaled down but still prominent on phones */
+        background-position: center center;
+      }
+    }
+  </style>
+  <script type="module">
+    import Theme from './js/theme.js';
+    Theme.initTheme();
+  </script>
+</head>
+<body class="text-gray-800">
+  <!-- Header removed per request (logo and avatar not needed on quiz page) -->
+
+  <main>
+    <!-- Full-width question header with white background -->
+    <div id="question-header-bar" class="bg-white p-6 mb-6 shadow-md">
+      <h2 id="question-text" class="text-xl font-semibold">Loading question...</h2>
+      <div id="progress-text" class="text-sm text-gray-500 mt-1"></div>
+    </div>
+
+    <div class="container mx-auto max-w-5xl p-6">
+      <section class="flex justify-center">
+        <div id="quiz-card" class="relative w-full max-w-3xl bg-white rounded-lg shadow-xl overflow-hidden">
+
+          <!-- Body area: answers -->
+          <div id="answers-body" class="p-6 grid gap-3">
+            <!-- options will be injected here -->
+            <p class="text-gray-500">Loading answers...</p>
+          </div>
+
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Large fixed-side navigation buttons (responsive) -->
+  <button id="nav-left" aria-label="Previous question" class="hidden sm:flex fixed left-0 top-1/2 -translate-y-1/2 w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 items-center justify-center z-40 bg-transparent hover:bg-blue-50 hover:shadow-md transition text-slate-700 hover:text-blue-600">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+    </svg>
+  </button>
+
+  <button id="nav-right" aria-label="Next question" class="hidden sm:flex fixed right-0 top-1/2 -translate-y-1/2 bottom-0 w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 items-center justify-center z-40 bg-transparent hover:bg-blue-50 hover:shadow-md transition text-slate-700 hover:text-blue-600">
+    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+    </svg>
+  </button>
+
+  <!-- Mobile bottom navigation (visible on small screens) -->
+  <!-- mobile bottom nav (visible on small screens) -->
+  <div id="mobile-nav" class="sm:hidden fixed left-1/2 -translate-x-1/2 bottom-4 w-[92%] max-w-3xl bg-white/90 backdrop-blur-sm rounded-full p-2 flex items-center justify-between z-50 shadow-lg">
+    <button id="nav-left-mobile" aria-label="Previous" class="flex-1 text-left px-6 py-3 rounded-l-full text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition flex items-center justify-center">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
+    </button>
+    <button id="nav-right-mobile" aria-label="Next" class="flex-1 text-right px-6 py-3 rounded-r-full text-slate-700 hover:bg-blue-50 hover:text-blue-600 transition flex items-center justify-center">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
+    </button>
+  </div>
+
+  <script type="module" src="./js/quiz.js"></script>
+</body>
+</html>
