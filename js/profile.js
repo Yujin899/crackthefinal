@@ -60,12 +60,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Update profile card
                 profileUsername.textContent = userData.username;
                 profileEmail.textContent = userData.email;
+                // profileAvatar may be an <a> (link to home) or a div - update its inner content accordingly
                 profileAvatar.innerHTML = `<img id="profile-avatar-img" src="${userData.avatar}" alt="User Avatar" class="w-24 h-24 rounded-full object-cover">`;
 
                 // wire avatar change flow
                 const changeAvatarBtn = document.getElementById('change-avatar-btn');
                 const avatarFileInput = document.getElementById('avatar-file-input');
-                changeAvatarBtn.addEventListener('click', () => avatarFileInput.click());
+                // change-avatar should still trigger the file input even if profileAvatar is a link
+                if (changeAvatarBtn) changeAvatarBtn.addEventListener('click', (ev) => { ev.preventDefault(); avatarFileInput.click(); });
 
                 
 

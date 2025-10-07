@@ -99,13 +99,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const rows = [];
             usersSnap.forEach(u => {
                 const d = u.data();
-                rows.push(`<div class="flex items-center p-3 border-b">
-                    <span class="font-bold text-lg w-8">${rank++}.</span>
-                    <div class="w-10 h-10 bg-gray-300 rounded-full mr-4 overflow-hidden">
-                        ${d.avatar ? `<img src="${d.avatar}" class="w-full h-full object-cover">` : ''}
+                // Responsive row: avatar shrinks on mobile, username truncates, points stay visible
+                rows.push(`<div class="flex items-center p-3 border-b gap-3">
+                    <span class="font-bold text-lg w-6 flex-shrink-0">${rank++}.</span>
+                    <div class="w-8 h-8 sm:w-10 sm:h-10 bg-gray-300 rounded-full overflow-hidden flex-shrink-0">
+                        ${d.avatar ? `<img src="${d.avatar}" class="w-full h-full object-cover">` : `<div class=\"w-full h-full bg-slate-200 flex items-center justify-center text-sm font-bold text-slate-600\">${(d.username||'A').charAt(0)}</div>`}
                     </div>
-                    <span class="font-semibold grow">${d.username || 'Anon'}</span>
-                    <span class="font-bold text-yellow-500">${d.points || 0} pts</span>
+                    <div class="min-w-0 flex-1">
+                        <div class="font-semibold truncate">${d.username || 'Anon'}</div>
+                    </div>
+                    <div class="ml-3 text-sm font-bold text-yellow-500 flex-shrink-0">${d.points || 0} pts</div>
                 </div>`);
             });
 
