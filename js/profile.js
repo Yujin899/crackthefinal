@@ -17,6 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const usernameHeader = document.getElementById('username-header');
     const avatarHeader = document.getElementById('avatar-header');
     const profileAvatar = document.getElementById('profile-avatar');
+    const profileReturnHome = document.getElementById('profile-return-home');
     const profileUsername = document.getElementById('profile-username');
     const profileEmail = document.getElementById('profile-email');
     const adminPanelButton = document.getElementById('admin-panel-button');
@@ -60,8 +61,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Update profile card
                 profileUsername.textContent = userData.username;
                 profileEmail.textContent = userData.email;
-                // profileAvatar may be an <a> (link to home) or a div - update its inner content accordingly
-                profileAvatar.innerHTML = `<img id="profile-avatar-img" src="${userData.avatar}" alt="User Avatar" class="w-24 h-24 rounded-full object-cover">`;
+                // Update header avatar only; profile page now has a Return button instead of a circular avatar
+                const profileImgHtml = userData.avatar ? `<img id="profile-avatar-img" src="${userData.avatar}" alt="User Avatar" class="w-24 h-24 rounded-full object-cover">` : `<div class="w-24 h-24 bg-slate-200 rounded-full flex items-center justify-center text-2xl font-bold text-slate-600">${(userData.username||'U').charAt(0)}</div>`;
+                // set header avatar
+                document.getElementById('avatar-header').innerHTML = userData.avatar ? `<img src="${userData.avatar}" alt="User Avatar" class="w-10 h-10 rounded-full object-cover">` : `<div class="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center text-sm font-bold text-slate-600">${(userData.username||'U').charAt(0)}</div>`;
+                // set the profile return button text (no avatar inside profile card)
+                if (profileReturnHome) profileReturnHome.textContent = 'Return to home';
 
                 // wire avatar change flow
                 const changeAvatarBtn = document.getElementById('change-avatar-btn');
@@ -156,7 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         await updateDoc(userDocRef, { avatar: null, avatarPublicId: null });
                         const initial = (userData.username || 'U').charAt(0).toUpperCase();
-                        profileAvatar.innerHTML = `<div class="w-24 h-24 bg-slate-200 rounded-full flex items-center justify-center text-2xl font-bold text-slate-600">${initial}</div>`;
+                        // update header only; profile uses return button
                         avatarHeader.innerHTML = `<div class="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center text-sm font-bold text-slate-600">${initial}</div>`;
                         deleteAvatarBtn.classList.add('hidden');
                     } catch (err) {
@@ -184,6 +189,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (userData.isAdmin === true) {
                     adminPanelButton.classList.remove('hidden');
                 }
+
+                // wire return home button
+                if (profileReturnHome) profileReturnHome.addEventListener('click', () => { window.location.href = '/home.html'; });
 
                 // fetch attempts and render analytics
                 fetchAndRenderAttempts(user.uid);
