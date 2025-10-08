@@ -203,12 +203,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             <h3 class="font-semibold text-lg text-slate-900 break-words">${quiz.name}</h3>
                             <div class="hidden sm:flex flex-shrink-0 items-center gap-2 text-sm text-gray-500">
                                 <svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-5 w-5 text-gray-400\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M5 8V6a5 5 0 1110 0v2h1a1 1 0 011 1v8a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1h1zm2-2a3 3 0 116 0v2H7V6z\" clip-rule=\"evenodd\"/></svg>
-                                <span>Locked: need ${requiredPercent}% (you: ${userAvgPercentOnPrev}%)</span>
+                                <span>Locked: need ${requiredPercent}% (you: ${userBestPercentOnPrev}%)</span>
                             </div>
                         </div>
                         <div class="mt-2 sm:hidden text-sm text-gray-500 flex items-start gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 8V6a5 5 0 1110 0v2h1a1 1 0 011 1v8a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1h1zm2-2a3 3 0 116 0v2H7V6z" clip-rule="evenodd"/></svg>
-                            <span class="break-words">Locked: need ${requiredPercent}% in previous quiz (you: ${userAvgPercentOnPrev}%)</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 8V6a5 5 0 1110 0v2H7V6z" clip-rule="evenodd"/></svg>
+                            <span class="break-words">Locked: need ${requiredPercent}% in previous quiz (you: ${userBestPercentOnPrev}%)</span>
                         </div>
                     </div>
                 `;
