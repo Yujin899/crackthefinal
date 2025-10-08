@@ -29,8 +29,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             // User is signed in, see https://firebase.google.com/docs/auth/web/start
-            console.log('User is already logged in. Redirecting to home.html...');
-            window.location.href = '/home.html';
+            console.log('User is already logged in. Redirecting to index.html...');
+            window.location.href = '/index.html';
         } else {
             // User is signed out, so they can stay on the auth page.
             console.log('No user signed in. Displaying auth page.');
@@ -126,7 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             // sign-up complete; clear flag and redirect
             isSigningUp = false;
-            window.location.href = '/home.html';
+            window.location.href = '/index.html';
         } catch (error) {
             // clear flag so listener can behave normally if an error occurred
             isSigningUp = false;

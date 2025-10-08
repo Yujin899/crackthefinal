@@ -150,7 +150,7 @@ export async function renderShop(db, uid, containerEl) {
       ${Object.values(SKILLS).map(s => `
         <div class="bg-white rounded-lg shadow-md overflow-hidden">
           <div class="w-full h-56 md:h-64 bg-gray-100 overflow-hidden">
-            ${s.image ? `<img src="${s.image}" class="w-full h-full object-cover">` : ''}
+            ${s.image ? `<img src="${s.image}" class="w-full h-full object-cover" loading="lazy" decoding="async">` : ''}
           </div>
           <div class="p-6 flex flex-col items-center text-center">
             <div class="w-full">
@@ -208,7 +208,7 @@ export async function renderShop(db, uid, containerEl) {
       const listHtml = candidates.map(c => `
         <div class="p-2 border-b flex items-center justify-between">
           <div class="flex items-center gap-3">
-            <div class="w-8 h-8 bg-gray-200 rounded-full overflow-hidden">${c.avatar ? `<img src="${c.avatar}" class="w-full h-full object-cover">` : ''}</div>
+            <div class="w-8 h-8 bg-gray-200 rounded-full overflow-hidden">${c.avatar ? `<img src="${c.avatar}" class="w-full h-full object-cover" loading="lazy" decoding="async">` : ''}</div>
             <div class="font-semibold">${c.username || 'Anon'}</div>
           </div>
           <div><button data-target-id="${c.id}" class="apply-target bg-red-500 text-white px-2 py-1 rounded">Steal</button></div>

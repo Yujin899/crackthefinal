@@ -94,6 +94,21 @@ html.dark .form-input {
 html.dark .form-input::placeholder { color: rgba(230,238,248,0.6) !important; }
 html.dark .form-label { color: var(--ctf-text) !important; }
 
+/* Admin cards: use the panel color and increase contrast for text and controls */
+html.dark .admin-card {
+  background-color: var(--ctf-panel) !important;
+  color: var(--ctf-text) !important;
+  box-shadow: 0 6px 18px rgba(2,6,23,0.6) !important;
+  border: 1px solid rgba(255,255,255,0.04) !important;
+}
+html.dark .admin-card h1, html.dark .admin-card h2, html.dark .admin-card .form-label {
+  color: var(--ctf-text) !important;
+}
+html.dark .admin-card .submit-btn {
+  background-color: #2563eb !important; /* slightly darker blue for buttons in dark mode */
+}
+html.dark .admin-card .submit-btn:hover { background-color: #1e40af !important; }
+
 /* Mobile nav buttons (small screens) - ensure hover matches desktop arrows */
 html.dark #nav-left-mobile:hover, html.dark #nav-right-mobile:hover, html.dark #mobile-nav button:hover {
   background-color: #60A5FA !important; /* blue-400 */

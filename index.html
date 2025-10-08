@@ -1,101 +1,125 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" dir="ltr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CrackTheFinal - Auth</title>
+    <title>CrackTheFinal - Home</title>
+    
     <link href="./dist/output.css" rel="stylesheet">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.css" />
+
     <style>
         body { font-family: 'Poppins', sans-serif; background-color: #f3fbff; }
-        .form-container { transition: transform 0.6s ease-in-out, opacity 0.5s ease-in-out; transform: translateX(0%); }
-        .form-container.hidden { opacity: 0; pointer-events: none; position: absolute; transform: translateX(100%); }
-        .slide-enter-from { transform: translateX(100%); opacity: 0; }
-        .slide-enter-to { transform: translateX(0); opacity: 1; }
-        .slide-leave-to { transform: translateX(-100%); opacity: 0; }
-        #email-suggestions { display: none; }
         
-        /* Toast Notification Styles */
-        #toast-container { position: fixed; top: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
-        .toast { padding: 12px 20px; border-radius: 8px; color: white; font-size: 14px; font-weight: 500; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); opacity: 0; transform: translateX(100%); animation: slideIn 0.5s forwards, fadeOut 0.5s 6.5s forwards; }
-        .toast-error { background-color: #ef4444; }
-        @keyframes slideIn { to { opacity: 1; transform: translateX(0); } }
-        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; transform: translateX(100%); } }
+        .subjects-swiper .swiper-pagination { position: static; margin-top: 1.5rem; }
+        .subjects-swiper .swiper-pagination-bullet-active { background-color: #3b82f6 !important; }
 
-        /*
-         * NEW: Self-contained spinner animation.
-         * This removes the dependency on Tailwind's 'animate-spin'.
-        */
-        .spinner {
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+        .events-swiper .swiper-pagination-bullet-active {
+            background-color: #ffffff !important;
         }
     </style>
-</head>
-<body class="flex items-center justify-center min-h-screen p-4">
     <script type="module">
         import Theme from './js/theme.js';
         Theme.initTheme();
     </script>
-    <script type="module">
-        import './js/errorToast.js';
-    </script>
+</head>
+<body class="text-gray-800">
 
-    <div class="bg-white rounded-2xl shadow-2xl p-8 sm:p-10 md:p-12 max-w-md w-full relative overflow-hidden">
-        <div class="flex flex-col items-center mb-8">
-            <div class="w-96 h-96 flex items-center justify-center mb-4">
-                <img src="./imgs/logo.png" alt="CrackTheFinal Logo" class="max-w-full h-auto">
+    <!-- Removed initial inline auth-check loader: no longer needed -->
+
+    <header class="bg-white shadow-md p-4 sticky top-0 z-50">
+        <div class="container mx-auto max-w-5xl flex justify-between items-center">
+            
+            <a href="/index.html" class="text-2xl font-bold text-blue-500">CrackTheFinal</a>
+            
+            <a href="/profile.html" id="user-menu" class="flex items-center gap-3">
+                <span id="username-header" class="hidden md:inline font-semibold text-gray-700">Loading...</span>
+                <div id="avatar-header" class="w-10 h-10 bg-gray-300 rounded-full"></div>
+            </a>
+        </div>
+    </header>
+
+    <main class="container mx-auto max-w-5xl p-6">
+        <section class="mb-12">
+            <div class="swiper events-swiper rounded-lg overflow-hidden">
+                <div class="swiper-wrapper">
+                    <div class="swiper-slide"><img src="./imgs/welcomee.png" alt="Welcome Banner" class="w-full h-full object-cover" loading="lazy" decoding="async"></div>
+                    <div class="swiper-slide"><img src="./imgs/chem.png" alt="Welcome Banner" class="w-full h-full object-cover" loading="lazy" decoding="async"></div>
+                    <div class="swiper-slide"><img src="./imgs/pharama.png" alt="Shop Banner" class="w-full h-full object-cover" loading="lazy" decoding="async"></div>
+                </div>
+                <div class="swiper-pagination"></div>
             </div>
-        </div>
+        </section>
 
-        <div id="auth-forms" class="relative h-[400px]">
-            <form id="signInForm" class="form-container absolute top-0 left-0 w-full p-2">
-                 <h2 class="text-2xl font-semibold text-charcoal mb-6 text-center">Welcome Back!</h2>
-                <div class="mb-4">
-                    <label for="signInEmail" class="block text-slate-700 text-sm font-medium mb-2">Email</label>
-                    <input type="email" id="signInEmail" class="auth-input w-full p-3 bg-slate-100 border border-transparent rounded-md focus:ring-2 focus:ring-blue-400 transition duration-200" placeholder="your@example.com" required>
+        <section class="mb-12">
+            <div class="flex items-center gap-4 mb-6">
+                <h2 class="text-xl sm:text-2xl md:text-3xl font-bold flex items-center gap-3 text-slate-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v11.494m0 0a8.485 8.485 0 00-4.087.923c-2.012.604-3.913-1.25-3.913-3.422 0-1.246.66-2.404 1.76-3.11 1.098-.707 2.64-1.25 4.24-1.25a8.485 8.485 0 014.087.923c2.012.604 3.913-1.25 3.913-3.422 0-1.246-.66-2.404-1.76-3.11-1.098-.707-2.64-1.25-4.24-1.25z" />
+                    </svg>
+                    <span>Available Subjects</span>
+                </h2>
+                
+            </div>
+            
+            <div class="slider-container">
+                <div class="swiper subjects-swiper">
+                    <div class="swiper-wrapper py-4">
+                        </div>
                 </div>
-                <div class="mb-6">
-                    <label for="signInPassword" class="block text-slate-700 text-sm font-medium mb-2">Password</label>
-                    <input type="password" id="signInPassword" class="auth-input w-full p-3 bg-slate-100 border border-transparent rounded-md focus:ring-2 focus:ring-blue-400 transition duration-200" placeholder="••••••••" required>
-                </div>
-                <button type="submit" class="w-full h-12 bg-blue-400 text-white p-3 rounded-md font-semibold hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 transition duration-200 flex items-center justify-center">Sign In</button>
-                <p class="text-center text-slate-gray text-sm mt-6">
-                    Don't have an account? 
-                    <button type="button" id="showSignUp" class="text-blue-500 font-semibold hover:underline focus:outline-none">Sign Up</button>
-                </p>
-            </form>
+            </div>
+            <div class="swiper-pagination"></div>
+        </section>
 
-            <form id="signUpForm" class="form-container absolute top-0 left-0 w-full p-2 hidden">
-                <h2 class="text-2xl font-semibold text-charcoal mb-6 text-center">Join CrackTheFinal</h2>
-                <div class="mb-4">
-                    <label for="signUpName" class="block text-slate-700 text-sm font-medium mb-2">Full Name</label>
-                    <input type="text" id="signUpName" class="auth-input w-full p-3 bg-slate-100 border border-transparent rounded-md focus:ring-2 focus:ring-blue-400 transition duration-200" placeholder="John Doe" required>
+        <section>
+            <div class="flex items-center gap-4 mb-6">
+                      <h2 class="text-xl sm:text-2xl md:text-3xl font-bold flex items-center gap-3 text-slate-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 012-2h2a2 2 0 012 2v6m-6 0h6M9 19a2 2 0 01-2-2v-6a2 2 0 012-2h6a2 2 0 012 2v6a2 2 0 01-2 2M9 19h6M5 13H4a2 2 0 01-2-2V7a2 2 0 012-2h1m12 0h1a2 2 0 012 2v4a2 2 0 01-2 2h-1M9 7h6" />
+                    </svg>
+                    <span>Leaderboard</span>
+                </h2>
+                
+            </div>
+            <div class="bg-white p-4 rounded-lg shadow-md">
+                <div id="leaderboard-list">
+                    <div class="flex items-center p-3 border-b">
+                        <span class="font-bold text-lg w-8">1.</span>
+                        <div class="w-10 h-10 bg-gray-300 rounded-full mr-4"></div>
+                        <span class="font-semibold grow">Loading...</span>
+                        <span class="font-bold text-yellow-500">0 pts</span>
+                    </div>
                 </div>
-                <div class="mb-4 relative">
-                    <label for="signUpEmail" class="block text-slate-700 text-sm font-medium mb-2">Email</label>
-                    <input type="email" id="signUpEmail" class="auth-input w-full p-3 bg-slate-100 border border-transparent rounded-md focus:ring-2 focus:ring-blue-400 transition duration-200" placeholder="your@example.com" required autocomplete="off">
-                    <div id="email-suggestions" class="absolute z-10 w-full bg-white border border-gray-200 rounded-md mt-1 shadow-lg max-h-40 overflow-y-auto"></div>
-                </div>
-                <div class="mb-4">
-                    <label for="signUpPassword" class="block text-slate-700 text-sm font-medium mb-2">Password</label>
-                    <input type="password" id="signUpPassword" class="auth-input w-full p-3 bg-slate-100 border border-transparent rounded-md focus:ring-2 focus:ring-blue-400 transition duration-200" placeholder="••••••••" required>
-                </div>
-                <button type="submit" class="w-full h-12 bg-blue-400 text-white p-3 rounded-md font-semibold hover:bg-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-offset-2 transition duration-200 flex items-center justify-center">Sign Up</button>
-                <p class="text-center text-slate-gray text-sm mt-6">
-                    Already have an account? 
-                    <button type="button" id="showSignIn" class="text-blue-500 font-semibold hover:underline focus:outline-none">Sign In</button>
-                </p>
-            </form>
-        </div>
-    </div>
+            </div>
+        </section>
 
-    <div id="toast-container"></div>
-    <script type="module" src="./js/auth.js"></script>
+        <!-- Shop Section -->
+        <section class="mt-8">
+            <div class="flex items-center gap-4 mb-6">
+                <h2 class="text-xl sm:text-2xl md:text-3xl font-bold flex items-center gap-3 text-slate-700">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M3 7h18M5 7v12a2 2 0 002 2h10a2 2 0 002-2V7M9 7V4a3 3 0 116 0v3" />
+                    </svg>
+                    <span>CrackTheFinal Shop</span>
+                </h2>
+                
+            </div>
+
+            <div id="shop-root" class="bg-white p-4 rounded-lg shadow-md">
+                <div class="p-6 text-center">
+                    <h3 class="text-xl font-semibold mb-2">Shop — Coming Soon</h3>
+                    <p class="text-sm text-gray-500">We're polishing the shop before launch. Check back later!</p>
+                </div>
+            </div>
+        </section>
+    </main>
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2"></div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/swiper@11/swiper-bundle.min.js"></script>
+    <script type="module" src="./js/index.js"></script>
 </body>
 </html>

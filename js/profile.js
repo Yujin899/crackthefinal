@@ -107,13 +107,16 @@ document.addEventListener('DOMContentLoaded', () => {
                             // update user doc with new avatar public id
                             await updateDoc(userDocRef, { avatar: avatarUrl, avatarPublicId: publicId });
 
+                            // build an optimized display URL using Cloudinary transformation params (auto quality, format)
+                            const optimized = publicId ? `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/q_auto,f_auto,w_400/${encodeURIComponent(publicId)}.png` : avatarUrl;
+
                             // update UI
                             const img = document.getElementById('profile-avatar-img');
-                            if (img) img.src = avatarUrl;
+                            if (img) { img.src = optimized; img.loading = 'lazy'; img.decoding = 'async'; }
                             // Only update the header avatar if it's a container (not our 'Return to Home' span)
                             const hdr = document.getElementById('avatar-header');
                             if (hdr && hdr.tagName && hdr.tagName.toLowerCase() !== 'span') {
-                                hdr.innerHTML = `<img src="${avatarUrl}" alt="User Avatar" class="w-10 h-10 rounded-full object-cover">`;
+                                hdr.innerHTML = `<img src="${optimized}" alt="User Avatar" class="w-10 h-10 rounded-full object-cover" loading="lazy" decoding="async">`;
                             }
                         } catch (err) {
                             console.error('Error uploading avatar:', err);
@@ -131,6 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     fd.append('file', file);
                     fd.append('upload_preset', UPLOAD_PRESET);
                     fd.append('public_id', publicIdForUser);
+                    // Optional: ask Cloudinary to automatically optimize format/quality on delivery (applied on URL)
                     xhr.send(fd);
                 });
 
@@ -385,7 +389,7 @@ document.addEventListener('DOMContentLoaded', () => {
             fetchAndDisplayUserData(user);
         } else {
             // User is not signed in, redirect them to the auth page
-            window.location.href = '/index.html';
+            window.location.href = '/auth.html';
         }
     });
 
@@ -395,7 +399,7 @@ document.addEventListener('DOMContentLoaded', () => {
             await signOut(auth);
             console.log("User signed out successfully.");
             // Redirect to auth page after sign out
-            window.location.href = '/index.html';
+            window.location.href = '/auth.html';
         } catch (error) {
             console.error("Error signing out:", error);
         }

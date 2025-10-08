@@ -44,9 +44,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const displaySubjectDetails = async (user = null) => {
         showLoader('Loading subject...');
         const subjectDocRef = doc(db, 'subjects', subjectId);
-        const subjectDoc = await getDoc(subjectDocRef);
+        let subjectDoc;
+        try {
+            subjectDoc = await getDoc(subjectDocRef);
+        } catch (err) {
+            // If reading subject doc is forbidden for anonymous users, surface a friendly message below
+            console.warn('Could not read subject document (possibly permission issue):', err);
+            hideLoader();
+            if (quizzesListEl) {
+                quizzesListEl.innerHTML = `
+                    <div class="p-4 bg-yellow-50 rounded-lg text-center border border-yellow-100">
+                        <p class="mb-3 text-gray-700">Please sign in to view this subject's content and quizzes.</p>
+                        <a href="/auth.html" class="inline-block px-4 py-2 bg-yellow-500 text-white rounded">Sign in to access</a>
+                    </div>
+                `;
+            }
+            return;
+        }
 
-        if (subjectDoc.exists()) {
+        if (subjectDoc && subjectDoc.exists()) {
             const subjectData = subjectDoc.data();
             largeCoverEl.src = subjectData.largeCoverUrl;
             largeCoverEl.alt = subjectData.name;
@@ -56,8 +72,31 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        // Only attempt to read quizzes if user is provided (authenticated). If user is null,
+        // skip quizzes here to avoid permission errors and let the caller handle anon UI.
+        if (!user) {
+            hideLoader();
+            return;
+        }
+
         const quizzesQuery = query(collection(db, 'subjects', subjectId, 'quizzes'), orderBy('createdAt', 'asc'));
-        const quizzesSnapshot = await getDocs(quizzesQuery);
+        let quizzesSnapshot;
+        try {
+            quizzesSnapshot = await getDocs(quizzesQuery);
+        } catch (err) {
+            console.warn('Could not read quizzes (permission?):', err);
+            // show sign-in CTA as fallback
+            if (quizzesListEl) {
+                quizzesListEl.innerHTML = `
+                    <div class="p-4 bg-yellow-50 rounded-lg text-center border border-yellow-100">
+                        <p class="mb-3 text-gray-700">Please sign in to view this subject's quizzes.</p>
+                        <a href="/auth.html" class="inline-block px-4 py-2 bg-yellow-500 text-white rounded">Sign in to access</a>
+                    </div>
+                `;
+            }
+            hideLoader();
+            return;
+        }
 
         // If we have a signed-in user, fetch their attempts for this subject and compute best totalPoints per quiz
         let bestPointsByQuiz = new Map();
@@ -160,14 +199,76 @@ document.addEventListener('DOMContentLoaded', () => {
         hideLoader();
     };
 
-    // Auth guard and initial load
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            // load header info and subject details (user passed for unlock checks)
-            fetchAndDisplayUserData(user);
-            displaySubjectDetails(user);
-        } else {
-            window.location.href = '/index.html';
+    /**
+     * Render subject cover and a sign-in CTA for anonymous visitors (avoids reading quizzes which may be restricted).
+     */
+    const displaySubjectForAnon = async () => {
+        showLoader('Loading subject...');
+        const subjectDocRef = doc(db, 'subjects', subjectId);
+        try {
+            const subjectDoc = await getDoc(subjectDocRef);
+            if (subjectDoc.exists()) {
+                const subjectData = subjectDoc.data();
+                largeCoverEl.src = subjectData.largeCoverUrl;
+                largeCoverEl.alt = subjectData.name;
+            }
+        } catch (err) {
+            // ignore — we'll still show CTA without subject details
+            console.warn('Could not read subject doc for anonymous visitor:', err);
+        }
+        if (quizzesListEl) {
+            quizzesListEl.innerHTML = `
+                <div class="p-4 bg-yellow-50 rounded-lg text-center border border-yellow-100">
+                    <p class="mb-3 text-gray-700">This subject's quizzes and detailed content are available only to registered users.</p>
+                    <a href="/auth.html" class="inline-block px-4 py-2 bg-yellow-500 text-white rounded">Sign in to access</a>
+                </div>
+            `;
+        }
+        hideLoader();
+    };
+
+    // Auth-aware initial load: always show subject cover. If user is signed in, show quizzes/unlocks;
+    // otherwise show a CTA that asks the visitor to sign in to access quizzes/content.
+    onAuthStateChanged(auth, async (user) => {
+        try {
+            // Render subject (cover + basic info)
+            await displaySubjectDetails(user);
+
+            if (user) {
+                    // show header info and ensure user-menu links to profile
+                    await fetchAndDisplayUserData(user);
+                    const userMenu = document.getElementById('user-menu');
+                    const usernameHeader = document.getElementById('username-header');
+                    if (userMenu) userMenu.href = '/profile.html';
+                    if (usernameHeader) usernameHeader.classList.remove('hidden');
+                    // restore avatar container styling for signed-in user
+                    if (avatarHeader) avatarHeader.className = 'w-10 h-10 rounded-full overflow-hidden';
+                    // quizzes were rendered for authenticated users by displaySubjectDetails
+                } else {
+                    // For anonymous visitors, replace quizzes list with a sign-in CTA
+                    if (quizzesListEl) {
+                        quizzesListEl.innerHTML = `
+                            <div class="p-4 bg-yellow-50 rounded-lg text-center border border-yellow-100">
+                                <p class="mb-3 text-gray-700">This subject's quizzes and detailed content are available only to registered users.</p>
+                                <a href="/auth.html" class="inline-block px-4 py-2 bg-yellow-500 text-white rounded">Sign in to access</a>
+                            </div>
+                        `;
+                    }
+                    // change header user-menu to point to auth and show Sign In text in avatar area
+                    const userMenu = document.getElementById('user-menu');
+                    const usernameHeader = document.getElementById('username-header');
+                    const avatarHeader = document.getElementById('avatar-header');
+                    if (userMenu) userMenu.href = '/auth.html';
+                    if (usernameHeader) usernameHeader.classList.add('hidden');
+                    if (avatarHeader) {
+                        // make the avatar area a plain Sign In text (no bg circle)
+                        avatarHeader.className = 'text-blue-500 font-medium';
+                        avatarHeader.innerHTML = `Sign In`;
+                    }
+                }
+        } catch (e) {
+            console.error('Error initializing subject page:', e);
+            hideLoader();
         }
     });
 

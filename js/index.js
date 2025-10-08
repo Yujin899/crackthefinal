@@ -10,6 +10,8 @@ const SHOP_ENABLED = false;
 
 document.addEventListener('DOMContentLoaded', () => {
 
+    // (Removed click interception - links should behave normally and navigation will be gated on the subject page.)
+
     // =================================================================
     //  MODIFIED: Changed Events Slider effect to "Fade"
     // =================================================================
@@ -67,13 +69,14 @@ document.addEventListener('DOMContentLoaded', () => {
         subjectsSnapshot.forEach(doc => {
             const subject = doc.data();
             const subjectURL = `/subject.html?id=${doc.id}`;
+            // Ensure subject images are lazy-loaded and use async decoding
             slidesHTML += `
-                <div class="swiper-slide">
-                    <a href="${subjectURL}" class="group block rounded-lg shadow-md overflow-hidden transform hover:-translate-y-1 transition-all duration-300">
-                        <img src="${subject.smallCoverUrl}" alt="${subject.name}" class="w-full h-full object-cover">
-                    </a>
-                </div>
-            `;
+                    <div class="swiper-slide">
+                        <a href="${subjectURL}" class="group block rounded-lg shadow-md overflow-hidden transform hover:-translate-y-1 transition-all duration-300">
+                            <img src="${subject.smallCoverUrl}" alt="${subject.name}" class="w-full h-full object-cover" loading="lazy" decoding="async">
+                        </a>
+                    </div>
+                `;
         });
         swiperWrapper.innerHTML = slidesHTML;
         subjectsSwiper.update();
@@ -103,7 +106,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 rows.push(`<div class="flex items-center p-3 border-b gap-3">
                     <span class="font-bold text-lg w-6 flex-shrink-0">${rank++}.</span>
                     <div class="w-8 h-8 sm:w-10 sm:h-10 bg-gray-300 rounded-full overflow-hidden flex-shrink-0">
-                        ${d.avatar ? `<img src="${d.avatar}" class="w-full h-full object-cover">` : `<div class=\"w-full h-full bg-slate-200 flex items-center justify-center text-sm font-bold text-slate-600\">${(d.username||'A').charAt(0)}</div>`}
+                        ${d.avatar ? `<img src="${d.avatar}" class="w-full h-full object-cover" loading="lazy" decoding="async">` : `<div class=\"w-full h-full bg-slate-200 flex items-center justify-center text-sm font-bold text-slate-600\">${(d.username||'A').charAt(0)}</div>`}
                     </div>
                     <div class="min-w-0 flex-1">
                         <div class="font-semibold truncate">${d.username || 'Anon'}</div>
@@ -131,7 +134,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (userDoc.exists()) {
                 const userData = userDoc.data();
                 usernameHeader.textContent = userData.username;
-                avatarHeader.innerHTML = `<img src="${userData.avatar}" alt="User Avatar" class="w-10 h-10 rounded-full object-cover">`;
+                // Prefer optimized cloudinary URL if public id present
+                const avatarSrc = userData.avatarPublicId ? `https://res.cloudinary.com/dqiwsls5y/image/upload/q_auto,f_auto,w_200/${encodeURIComponent(userData.avatarPublicId)}.png` : userData.avatar;
+                avatarHeader.innerHTML = `<img src="${avatarSrc}" alt="User Avatar" class="w-10 h-10 rounded-full object-cover" loading="lazy" decoding="async">`;
             } else {
                 console.warn("No user data found in Firestore! Creating default user document.");
                 // Create a minimal user document for legacy/auth-only users
@@ -158,10 +163,15 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Auth State Checker (Route Guard)
-    onAuthStateChanged(auth, (user) => {
+    onAuthStateChanged(auth, async (user) => {
+        const headerRight = document.getElementById('user-menu');
+        // Always render subjects for public visitors
+        try { await displaySubjects(); } catch (e) { console.error('Error rendering subjects:', e); }
+
+    // auth state updated (no local interception flag required)
+
         if (user) {
             fetchAndDisplayUserData(user);
-            displaySubjects();
             displayLeaderboard();
             // initialize shop if present (feature-flagged)
             const shopEl = document.getElementById('shop-root');
@@ -177,8 +187,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
         } else {
-            // Redirect to auth page after a short delay so users see the loader briefly
-            setTimeout(() => { window.location.href = '/index.html'; }, 120);
+            // Show a Sign In button in the header
+            if (headerRight) {
+                headerRight.innerHTML = `<a href="/auth.html" class="text-sm md:text-base text-blue-500 font-medium">Sign In</a>`;
+            }
+            // Clear leaderboard and show a call-to-action
+            const lbEl = document.getElementById('leaderboard-list');
+            if (lbEl) lbEl.innerHTML = `<div class="p-4 text-center text-gray-600">Please <a href=\"/auth.html\" class=\"text-blue-500 underline\">sign in</a> to view the leaderboard.</div>`;
+            console.log('No user signed in — home page remains public.');
         }
     });
 

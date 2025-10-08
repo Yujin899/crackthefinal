@@ -1,7 +1,7 @@
 // tailwind.config.js
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: ["./home.html", "./src/**/*.{js,ts,jsx,tsx}"], // Adjust according to your project structure
+  content: ["./index.html", "./auth.html", "./src/**/*.{js,ts,jsx,tsx}"], // Adjust according to your project structure
   theme: {
     extend: {
       colors: {

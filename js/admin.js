@@ -23,11 +23,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 initializeApp();
                 } else {
                 console.log("Access Denied: User is not an admin. Redirecting...");
-                window.location.href = '/home.html';
+                window.location.href = '/index.html';
             }
         } else {
             console.log("User not logged in. Redirecting...");
-            window.location.href = '/index.html';
+            window.location.href = '/auth.html';
         }
     });
 
@@ -56,8 +56,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (xhr.status >= 200 && xhr.status < 300) {
                     const data = JSON.parse(xhr.responseText);
                     if (data.error) return reject(new Error(`Cloudinary Error: ${data.error.message}`));
-                    if (!data.secure_url) return reject(new Error("Cloudinary did not return a URL."));
-                    resolve(data.secure_url);
+                    if (!data.secure_url && !data.public_id) return reject(new Error("Cloudinary did not return a URL or public_id."));
+                    // Build optimized URL if public_id is present
+                    const publicId = data.public_id || null;
+                    const optimized = publicId ? `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/q_auto,f_auto,w_800/${encodeURIComponent(publicId)}.png` : data.secure_url;
+                    resolve({ secure_url: data.secure_url, public_id: publicId, optimizedUrl: optimized });
                 } else {
                     reject(new Error(`Upload failed with status: ${xhr.status}`));
                 }
@@ -140,11 +143,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 const largeCoverFile = document.getElementById('large-cover').files[0];
                 if (!name || !smallCoverFile || !largeCoverFile) throw new Error("Please fill out all fields.");
 
-                const [smallCoverUrl, largeCoverUrl] = await Promise.all([
+                const [smallRes, largeRes] = await Promise.all([
                     uploadImage(smallCoverFile, (p) => { progress1 = p; updateCombinedProgress(); }),
                     uploadImage(largeCoverFile, (p) => { progress2 = p; updateCombinedProgress(); })
                 ]);
                 
+                const smallCoverUrl = smallRes.optimizedUrl || smallRes.secure_url;
+                const largeCoverUrl = largeRes.optimizedUrl || largeRes.secure_url;
+
                 addSubjectBtnText.textContent = 'Saving...';
                 await addDoc(collection(db, 'subjects'), { name, smallCoverUrl, largeCoverUrl, createdAt: new Date() });
                 
