@@ -33,19 +33,22 @@ document.addEventListener('DOMContentLoaded', () => {
             if (userDoc.exists()) {
                 const userData = userDoc.data();
                 // Only show the username text on medium+ screens; on small screens keep avatar-only
+                // Only update username if the element exists (we removed it from HTML)
                 const mdMq = window.matchMedia('(min-width: 768px)');
                 const syncUsernameVisibility = () => {
-                    if (mdMq.matches) {
-                        usernameHeader.textContent = userData.username;
-                        usernameHeader.classList.remove('hidden');
-                    } else {
-                        usernameHeader.classList.add('hidden');
+                    if (usernameHeader) {
+                        if (mdMq.matches) {
+                            usernameHeader.textContent = userData.username;
+                            usernameHeader.classList.remove('hidden');
+                        } else {
+                            usernameHeader.classList.add('hidden');
+                        }
                     }
                 };
                 syncUsernameVisibility();
                 // listen for viewport changes so header updates responsively
                 if (mdMq.addEventListener) mdMq.addEventListener('change', syncUsernameVisibility); else mdMq.addListener(syncUsernameVisibility);
-                avatarHeader.innerHTML = `<img src="${userData.avatar}" alt="User Avatar" class="w-10 h-10 rounded-full object-cover">`;
+                if (avatarHeader) avatarHeader.innerHTML = `<img src="${userData.avatar}" alt="User Avatar" class="w-10 h-10 rounded-full object-cover">`;
             }
         } catch (error) {
             console.error("Error fetching user data for header:", error);
@@ -110,31 +113,35 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // If we have a signed-in user, fetch their attempts for this subject and compute average percent per quiz
-        // We'll use the average percent of the previous quiz to decide unlocks (e.g., need 60% on quiz 1 to unlock quiz 2)
-        let avgPercentByQuiz = new Map();
+    // If we have a signed-in user, fetch their attempts for this subject and compute the BEST percent per quiz
+        // We use the highest-ever percent for each quiz so that once a user has met the requirement, the unlock remains permanent.
+        let bestPercentByQuiz = new Map();
+        // also fetch persisted unlocked quiz IDs for this subject (if any)
+        let persistedUnlockedQuizIds = new Set();
         if (user) {
             try {
                 const attemptsQuery = query(collection(db, 'users', user.uid, 'attempts'), where('subjectId', '==', subjectId));
                 const attemptsSnap = await getDocs(attemptsQuery);
-                // accumulate totals and counts per quiz
-                const totals = new Map();
-                const counts = new Map();
+                // accumulate best percent per quiz (max)
                 attemptsSnap.forEach(doc => {
                     const data = doc.data();
                     const qid = data.quizId;
                     const pct = typeof data.percent === 'number' ? data.percent : (typeof data.percent === 'string' ? parseFloat(data.percent) || 0 : 0);
-                    if (!totals.has(qid)) { totals.set(qid, 0); counts.set(qid, 0); }
-                    totals.set(qid, totals.get(qid) + pct);
-                    counts.set(qid, counts.get(qid) + 1);
-                });
-                // compute averages
-                totals.forEach((total, qid) => {
-                    const cnt = counts.get(qid) || 1;
-                    avgPercentByQuiz.set(qid, Math.round(total / cnt));
+                    const prev = bestPercentByQuiz.get(qid) || 0;
+                    if (pct > prev) bestPercentByQuiz.set(qid, Math.round(pct));
                 });
             } catch (e) {
                 console.error('Error fetching user attempts for subject:', e);
+            }
+            // try to read persisted unlocked flags (best-effort)
+            try {
+                const unlockedDoc = await getDoc(doc(db, 'users', user.uid, 'unlockedQuizzes', subjectId));
+                if (unlockedDoc && unlockedDoc.exists()) {
+                    const data = unlockedDoc.data();
+                    if (Array.isArray(data.quizIds)) data.quizIds.forEach(id => persistedUnlockedQuizIds.add(id));
+                }
+            } catch (e) {
+                // ignore if unable to read
             }
         }
 
@@ -158,13 +165,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // first quiz is never locked
             let locked = false;
-            let userAvgPercentOnPrev = 0;
+            let userBestPercentOnPrev = 0;
             if (i === 0) {
                 locked = false;
             } else {
                 const prevQuizId = quizzes[i - 1].id;
-                userAvgPercentOnPrev = avgPercentByQuiz.get(prevQuizId) || 0;
-                locked = requiredPercent > 0 && userAvgPercentOnPrev < requiredPercent;
+                // if the next quiz was explicitly unlocked earlier, treat it as unlocked
+                if (persistedUnlockedQuizIds.has(quizId)) {
+                    locked = false;
+                } else {
+                    // use best-ever percent (so once unlocked it stays unlocked)
+                    userBestPercentOnPrev = bestPercentByQuiz.get(prevQuizId) || 0;
+                    locked = requiredPercent > 0 && userBestPercentOnPrev < requiredPercent;
+                }
             }
 
             // check releaseAt (can be Firestore Timestamp or ISO string)
@@ -260,9 +273,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     // show header info and ensure user-menu links to profile
                     await fetchAndDisplayUserData(user);
                     const userMenu = document.getElementById('user-menu');
-                    const usernameHeader = document.getElementById('username-header');
                     if (userMenu) userMenu.href = '/profile.html';
-                    if (usernameHeader) usernameHeader.classList.remove('hidden');
                     // restore avatar container styling for signed-in user
                     if (avatarHeader) avatarHeader.className = 'w-10 h-10 rounded-full overflow-hidden';
                     // quizzes were rendered for authenticated users by displaySubjectDetails
@@ -278,10 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     // change header user-menu to point to auth and show Sign In text in avatar area
                     const userMenu = document.getElementById('user-menu');
-                    const usernameHeader = document.getElementById('username-header');
-                    const avatarHeader = document.getElementById('avatar-header');
                     if (userMenu) userMenu.href = '/auth.html';
-                    if (usernameHeader) usernameHeader.classList.add('hidden');
                     if (avatarHeader) {
                         // make the avatar area a plain Sign In text (no bg circle)
                         avatarHeader.className = 'text-blue-500 font-medium';

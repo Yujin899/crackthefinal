@@ -1,6 +1,6 @@
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
-import { collection, getDocs, query, orderBy, addDoc, serverTimestamp, doc, getDoc, updateDoc, where, limit } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+import { collection, getDocs, query, orderBy, addDoc, serverTimestamp, doc, getDoc, updateDoc, where, limit, setDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 import { showLoader, hideLoader } from './loader.js';
 import { calculateAdvancedPoints, applyPointsToUser } from './points.js';
 
@@ -11,11 +11,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const questionTextEl = document.getElementById('question-text');
   const answersBodyEl = document.getElementById('answers-body');
+  // progressTextEl removed from DOM; guard usages if present
   const progressTextEl = document.getElementById('progress-text');
   const navLeft = document.getElementById('nav-left');
   const navRight = document.getElementById('nav-right');
   const navLeftMobile = document.getElementById('nav-left-mobile');
   const navRightMobile = document.getElementById('nav-right-mobile');
+  // new footer nav elements
+  const footerNav = document.getElementById('footer-nav');
+  const footerPrev = document.getElementById('footer-prev');
+  const footerNext = document.getElementById('footer-next');
+  const footerSubmit = document.getElementById('footer-submit');
+  const footerProgress = document.getElementById('footer-progress');
 
   if (!subjectId || !quizId) {
     questionTextEl.textContent = 'Invalid quiz link.';
@@ -116,10 +123,51 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // After persisting an attempt, optionally mark the next quiz as unlocked for this user
+  async function persistUnlockNextIfEligible(resultSummary) {
+    if (!currentUser) return;
+    try {
+      // fetch all quizzes for this subject in order to locate the next quiz
+      const quizzesSnap = await getDocs(query(collection(db, 'subjects', subjectId, 'quizzes'), orderBy('createdAt', 'asc')));
+      const quizzes = quizzesSnap.docs.map(d => ({ id: d.id, data: d.data() }));
+      const idx = quizzes.findIndex(q => q.id === quizId);
+      if (idx === -1) return; // can't find position
+      const next = quizzes[idx + 1];
+      if (!next) return; // no next quiz
+
+      // get subject default unlock percent (if any)
+      let subjectDefault = 60;
+      try {
+        const subjectDoc = await getDoc(doc(db, 'subjects', subjectId));
+        if (subjectDoc && subjectDoc.exists()) {
+          const sd = subjectDoc.data();
+          if (typeof sd.minPointsToUnlock === 'number') subjectDefault = sd.minPointsToUnlock;
+        }
+      } catch (e) {
+        // ignore and use default
+      }
+
+      const requiredPercent = (typeof next.data.minPointsToUnlock === 'number') ? next.data.minPointsToUnlock : subjectDefault;
+
+      // if the user's percent meets or exceeds the required threshold, persist unlock for the next quiz
+      if (typeof resultSummary.percent === 'number' && resultSummary.percent >= requiredPercent) {
+        const unlockedRef = doc(db, 'users', currentUser.uid, 'unlockedQuizzes', subjectId);
+        try {
+          await setDoc(unlockedRef, { quizIds: arrayUnion(next.id) }, { merge: true });
+        } catch (e) {
+          // best-effort: log but don't block
+          console.warn('Failed to persist unlocked quiz flag:', e);
+        }
+      }
+    } catch (e) {
+      console.warn('Error while checking/persisting next-quiz unlock:', e);
+    }
+  }
+
   function renderQuestion() {
     const q = questions[currentIndex];
-    questionTextEl.textContent = q.text || q.question || 'Question';
-    progressTextEl.textContent = `Question ${currentIndex + 1} of ${questions.length}`;
+  questionTextEl.textContent = q.text || q.question || 'Question';
+  if (progressTextEl) progressTextEl.textContent = `Question ${currentIndex + 1} of ${questions.length}`;
 
     // render options as simple rows with a circular bullet (no border/background)
     answersBodyEl.innerHTML = '';
@@ -158,7 +206,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // update nav button visibility / text
-    navLeft.disabled = currentIndex === 0;
+  // update classic nav (if present)
+  if (navLeft) navLeft.disabled = currentIndex === 0;
     if (navLeft) {
       navLeft.classList.toggle('opacity-40', currentIndex === 0);
       navLeft.classList.toggle('pointer-events-none', currentIndex === 0);
@@ -167,36 +216,40 @@ document.addEventListener('DOMContentLoaded', () => {
       navLeftMobile.classList.toggle('opacity-40', currentIndex === 0);
       navLeftMobile.classList.toggle('pointer-events-none', currentIndex === 0);
     }
-    const isLast = currentIndex === questions.length - 1;
+  const isLast = currentIndex === questions.length - 1;
     if (isLast) {
-      // desktop: make the side button a prominent circular submit button with check icon
-      navRight.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 md:h-7 md:w-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>';
-      // remove full-height and conflicting hover classes
-      navRight.classList.remove('top-0', 'bottom-0', 'w-12', 'sm:w-16', 'md:w-20', 'flex-col', 'bg-transparent', 'hover:bg-blue-50', 'hover:shadow-md', 'hover:text-blue-600', 'text-slate-700');
-      // add submit styling: larger on md+ screens, centered vertically
-      navRight.classList.add('bg-blue-500', 'text-white', 'hover:bg-blue-600', 'rounded-full', 'shadow', 'w-12', 'h-12', 'md:w-16', 'md:h-16', 'flex', 'items-center', 'justify-center', 'transition-colors', 'duration-150');
-      // position: stick to right and center vertically (works well on large screens)
-      navRight.style.right = '1rem';
-      navRight.style.top = '50%';
-      navRight.style.transform = 'translateY(-50%)';
-      navRight.style.bottom = '';
+      // If navRight exists (desktop button was present), style it as submit. Otherwise the mobile button handles submit.
+      if (navRight) {
+        navRight.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 md:h-7 md:w-7 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>';
+        // remove full-height and conflicting hover classes
+        navRight.classList.remove('top-0', 'bottom-0', 'w-12', 'sm:w-16', 'md:w-20', 'flex-col', 'bg-transparent', 'hover:bg-blue-50', 'hover:shadow-md', 'hover:text-blue-600', 'text-slate-700');
+        // add submit styling: larger on md+ screens, centered vertically
+        navRight.classList.add('bg-blue-500', 'text-white', 'hover:bg-blue-600', 'rounded-full', 'shadow', 'w-12', 'h-12', 'md:w-16', 'md:h-16', 'flex', 'items-center', 'justify-center', 'transition-colors', 'duration-150');
+        // position: stick to right and center vertically (works well on large screens)
+        navRight.style.right = '1rem';
+        navRight.style.top = '50%';
+        navRight.style.transform = 'translateY(-50%)';
+        navRight.style.bottom = '';
+      }
     } else {
-      // restore arrow icon and original side-button behavior
-      navRight.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>';
-  // remove submit-specific classes
-  navRight.classList.remove('bg-blue-500', 'text-white', 'hover:bg-blue-600', 'rounded-full', 'shadow', 'w-auto', 'py-2', 'h-auto', 'items-center', 'justify-center');
-  // restore original visual classes for the arrow button and ensure centered alignment on large screens
-  navRight.classList.add('text-slate-700', 'bg-transparent', 'hover:bg-blue-50', 'hover:shadow-md', 'hover:text-blue-600', 'w-12', 'sm:w-16', 'md:w-20');
-  // ensure it displays as flex and centers the svg
-  navRight.classList.add('flex', 'items-center', 'justify-center');
-  navRight.classList.remove('flex-col');
-  // position: center vertically on big screens so arrow is visually centered
-  navRight.style.right = '';
-  navRight.style.top = '50%';
-  navRight.style.transform = 'translateY(-50%)';
-  navRight.style.bottom = '';
+      // Non-last question: restore arrow icon if the element exists
+      if (navRight) {
+        navRight.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>';
+        // remove submit-specific classes
+        navRight.classList.remove('bg-blue-500', 'text-white', 'hover:bg-blue-600', 'rounded-full', 'shadow', 'w-auto', 'py-2', 'h-auto', 'items-center', 'justify-center');
+        // restore original visual classes for the arrow button and ensure centered alignment on large screens
+        navRight.classList.add('text-slate-700', 'bg-transparent', 'hover:bg-blue-50', 'hover:shadow-md', 'hover:text-blue-600', 'w-12', 'sm:w-16', 'md:w-20');
+        // ensure it displays as flex and centers the svg
+        navRight.classList.add('flex', 'items-center', 'justify-center');
+        navRight.classList.remove('flex-col');
+        // position: center vertically on big screens so arrow is visually centered
+        navRight.style.right = '';
+        navRight.style.top = '50%';
+        navRight.style.transform = 'translateY(-50%)';
+        navRight.style.bottom = '';
+      }
     }
-    // Mobile right button: show check icon on last question (keep it active)
+  // Mobile right button: show check icon on last question (keep it active)
     if (navRightMobile) {
       if (isLast) {
         navRightMobile.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>';
@@ -207,14 +260,59 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
     // do not disable the mobile right button on the last question; it becomes Submit
+
+    // Update footer nav (if present)
+    if (footerProgress) footerProgress.textContent = `Question ${currentIndex + 1} of ${questions.length}`;
+    if (footerPrev) {
+      footerPrev.disabled = currentIndex === 0;
+      footerPrev.classList.toggle('disabled', currentIndex === 0);
+    }
+    if (footerNext) {
+      footerNext.classList.toggle('hidden', isLast);
+    }
+    if (footerSubmit) {
+      footerSubmit.classList.toggle('hidden', !isLast);
+    }
   }
 
-  navLeft.addEventListener('click', () => {
-    if (currentIndex > 0) {
-      currentIndex--;
-      renderQuestion();
-    }
-  });
+  if (navLeft) {
+    navLeft.addEventListener('click', () => {
+      if (currentIndex > 0) {
+        currentIndex--;
+        renderQuestion();
+      }
+    });
+  }
+
+  // footer prev/next/submit handlers
+  if (footerPrev) {
+    footerPrev.addEventListener('click', () => {
+      if (currentIndex > 0) {
+        currentIndex--;
+        renderQuestion();
+      }
+    });
+  }
+  if (footerNext) {
+    footerNext.addEventListener('click', () => {
+      if (currentIndex < questions.length - 1) {
+        currentIndex++;
+        renderQuestion();
+      }
+    });
+  }
+  if (footerSubmit) {
+    footerSubmit.addEventListener('click', async () => {
+      // submit flow
+      showLoader('Calculating results...');
+      const resultSummary = calculateResults();
+      const attemptId = await persistAttempt(resultSummary);
+      hideLoader();
+      // persist unlock for next quiz if eligible (best-effort)
+      await persistUnlockNextIfEligible(resultSummary);
+      renderResults(resultSummary, attemptId);
+    });
+  }
 
   if (navLeftMobile) {
     navLeftMobile.addEventListener('click', () => {
@@ -225,26 +323,37 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  navRight.addEventListener('click', async () => {
-    if (currentIndex < questions.length - 1) {
-      currentIndex++;
-      renderQuestion();
-      return;
-    }
-    // last question -> submit answers: calculate, persist, and render detailed results
-  showLoader('Calculating results...');
-  const resultSummary = calculateResults();
-  // persistAttempt now applies points and returns the attempt id; adv info is embedded in attempt details
-  const attemptId = await persistAttempt(resultSummary);
-  hideLoader();
-  // we can show the persisted attempt info via attemptId; renderResults reads resultSummary which now includes percent and perQuestion, bonus shown from persisted attempt is optional
-  renderResults(resultSummary, attemptId);
-  });
+  if (navRight) {
+    navRight.addEventListener('click', async () => {
+      if (currentIndex < questions.length - 1) {
+        currentIndex++;
+        renderQuestion();
+        return;
+      }
+      // last question -> submit answers: calculate, persist, and render detailed results
+      showLoader('Calculating results...');
+      const resultSummary = calculateResults();
+      // persistAttempt now applies points and returns the attempt id; adv info is embedded in attempt details
+      const attemptId = await persistAttempt(resultSummary);
+      hideLoader();
+      // persist unlock for next quiz if eligible (best-effort)
+      await persistUnlockNextIfEligible(resultSummary);
+      // we can show the persisted attempt info via attemptId; renderResults reads resultSummary which now includes percent and perQuestion, bonus shown from persisted attempt is optional
+      renderResults(resultSummary, attemptId);
+    });
+  }
 
   function renderResults(resultSummary, attemptId = null) {
     // header
     questionTextEl.textContent = 'Results';
-    progressTextEl.textContent = `Score: ${resultSummary.totalPoints} / ${resultSummary.maxTotal} (${resultSummary.percent}%)`;
+    // progressTextEl was removed from the header; guard before writing
+    if (progressTextEl) {
+      progressTextEl.textContent = `Score: ${resultSummary.totalPoints} / ${resultSummary.maxTotal} (${resultSummary.percent}%)`;
+    }
+    // also update footer progress area if present
+    if (footerProgress) {
+      footerProgress.textContent = `Score: ${resultSummary.totalPoints} / ${resultSummary.maxTotal} (${resultSummary.percent}%)`;
+    }
 
     // build details
     const wrap = document.createElement('div');
@@ -307,6 +416,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (navRight) navRight.style.display = 'none';
       const mobileNav = document.getElementById('mobile-nav');
       if (mobileNav) mobileNav.style.display = 'none';
+      // hide footer nav if present
+      if (footerNav) footerNav.style.display = 'none';
     } catch (e) {
       // no-op if elements missing
     }
@@ -319,8 +430,16 @@ document.addEventListener('DOMContentLoaded', () => {
         renderQuestion();
         return;
       }
-      // last question -> submit answers (reuse same flow)
-      navRight.click();
+      // last question -> submit answers (reuse same flow). If navRight exists, trigger it; otherwise run submit flow here.
+      if (navRight) {
+        navRight.click();
+      } else {
+        showLoader('Calculating results...');
+        const resultSummary = calculateResults();
+        const attemptId = await persistAttempt(resultSummary);
+        hideLoader();
+        renderResults(resultSummary, attemptId);
+      }
     });
   }
 

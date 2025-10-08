@@ -28,6 +28,9 @@ export function applyTheme(mode) {
 function ensureDarkStyles() {
   if (document.getElementById('ctf-dark-styles')) return;
   const css = `
+/* Global: show pointer cursor for interactive elements (links, buttons, inputs with button-like roles) */
+a, button, input[type='button'], input[type='submit'], input[type='reset'], [role='button'] { cursor: pointer; }
+
 html.dark { --ctf-bg: #0b1220; --ctf-panel: #0f1724; --ctf-text: #e6eef8; --ctf-muted: #9aa4b2; --ctf-accent: #3b82f6; }
 html.dark body { background-color: var(--ctf-bg) !important; color: var(--ctf-text) !important; }
 html.dark header, html.dark .bg-white, html.dark .bg-gray-50 { background-color: var(--ctf-panel) !important; }
