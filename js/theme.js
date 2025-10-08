@@ -40,6 +40,19 @@ html.dark .bg-red-500 { background-color: #dc2626 !important; }
 html.dark .rounded-lg, html.dark .rounded-md { background-clip: padding-box; }
 html.dark a.text-blue-500 { color: var(--ctf-accent) !important; }
 html.dark .shadow-md, html.dark .shadow-lg, html.dark .shadow-sm { box-shadow: 0 6px 18px rgba(2,6,23,0.6) !important; }
+/* Quiz result preview: provide neutral/correct/wrong mark styles and panel background for results */
+.ctf-result-wrap { background-color: rgba(255,255,255,0.8); }
+.ctf-result-question { color: #0f1724; }
+.ctf-mark-correct { background: #10b981; }
+.ctf-mark-wrong { background: #ef4444; }
+.ctf-mark-neutral { border: 1px solid #e5e7eb; }
+.ctf-points { color: #374151; }
+html.dark .ctf-result-wrap { background-color: var(--ctf-panel) !important; border-color: rgba(255,255,255,0.04) !important; }
+html.dark .ctf-result-question { color: var(--ctf-text) !important; }
+html.dark .ctf-mark-correct { background: #059669 !important; }
+html.dark .ctf-mark-wrong { background: #dc2626 !important; }
+html.dark .ctf-mark-neutral { border-color: rgba(255,255,255,0.06) !important; }
+html.dark .ctf-points { color: var(--ctf-muted) !important; }
 /* Quiz specific tweaks: arrows and header/nav */
 html.dark #nav-left, html.dark #nav-right {
   background-color: transparent !important;

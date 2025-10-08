@@ -249,10 +249,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     resultSummary.perQuestion.forEach((p) => {
       const qWrap = document.createElement('div');
-      qWrap.className = 'p-3 rounded-lg bg-white/80 border';
+      qWrap.className = 'p-3 rounded-lg bg-white/80 border ctf-result-wrap';
 
-      const qText = document.createElement('div');
-      qText.className = 'font-semibold mb-2';
+  const qText = document.createElement('div');
+  qText.className = 'font-semibold mb-2 ctf-result-question';
       qText.textContent = `${p.idx + 1}. ${p.text}`;
 
       qWrap.appendChild(qText);
@@ -264,13 +264,13 @@ document.addEventListener('DOMContentLoaded', () => {
         const mark = document.createElement('div');
         mark.className = 'w-5 h-5 rounded-full flex items-center justify-center';
         if (i === p.correctIndex) {
-          mark.style.background = '#10b981'; // green for correct
+          mark.classList.add('ctf-mark-correct');
           mark.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 00-1.414-1.414L8 11.172 4.707 7.879a1 1 0 00-1.414 1.414l4 4a1 1 0 001.414 0l8-8z" clip-rule="evenodd"/></svg>';
         } else if (i === p.userAnswer && !p.correct) {
-          mark.style.background = '#ef4444'; // red for user's wrong
+          mark.classList.add('ctf-mark-wrong');
           mark.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6.293 6.293a1 1 0 011.414 0L10 8.586l2.293-2.293a1 1 0 111.414 1.414L11.414 10l2.293 2.293a1 1 0 01-1.414 1.414L10 11.414l-2.293 2.293a1 1 0 01-1.414-1.414L8.586 10 6.293 7.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>';
         } else {
-          mark.style.border = '1px solid #e5e7eb';
+          mark.classList.add('ctf-mark-neutral');
         }
 
         const optLabel = document.createElement('div');
@@ -281,8 +281,8 @@ document.addEventListener('DOMContentLoaded', () => {
         qWrap.appendChild(optRow);
       });
 
-      const pointsRow = document.createElement('div');
-      pointsRow.className = 'mt-2 text-sm text-gray-600';
+  const pointsRow = document.createElement('div');
+  pointsRow.className = 'mt-2 text-sm text-gray-600 ctf-points';
       pointsRow.textContent = `Points: ${p.pointsEarned} / ${p.maxPoints}`;
       qWrap.appendChild(pointsRow);
 
