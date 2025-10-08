@@ -35,9 +35,7 @@
         import Theme from './js/theme.js';
         Theme.initTheme();
     </script>
-    <script type="module">
-        import './js/notifications.js';
-    </script>
+    <!-- notifications removed -->
 
     <div class="max-w-4xl mx-auto">
         <div class="flex items-center justify-between mb-8">
@@ -83,26 +81,7 @@
                 </div>
                 <button type="submit" class="submit-btn">Add Quiz</button>
                 <p id="quiz-status" class="text-center text-green-600 mt-2 h-4"></p>
-            </form>
-        </div>
-
-        <div class="admin-card p-6">
-            <h2 class="text-2xl font-bold mb-6 border-b pb-4">3. Upload Questions (.json file)</h2>
-            <form id="add-question-form" class="space-y-4">
-                <div>
-                    <label for="subject-select-for-question" class="form-label block mb-2">Select Subject</label>
-                    <select id="subject-select-for-question" class="form-input auth-input" required>
-                        <option value="">Loading Subjects...</option>
-                    </select>
-                </div>
-                <div>
-                    <label for="quiz-select-for-question" class="form-label block mb-2">Select Quiz</label>
-                    <select id="quiz-select-for-question" class="form-input auth-input" required>
-                        <option value="">Select a subject first</option>
-                    </select>
-                </div>
-                <div>
-                    <label for="questions-json-file" class="form-label block mb-2">Questions JSON File</label>
+                <!-- Notifications feature removed -->
                     <input type="file" id="questions-json-file" class="form-input auth-input" accept=".json" required>
                 </div>
                 <button type="submit" class="submit-btn">Upload Questions</button>
@@ -117,31 +96,7 @@
             </div>
         </div>
         
-        <div class="admin-card p-6 mt-8">
-            <h2 class="text-2xl font-bold mb-6 border-b pb-4">5. Send Notification</h2>
-            <form id="send-notification-form" class="space-y-4">
-                <div>
-                    <label class="form-label block mb-2">Target user UID (leave empty to broadcast)</label>
-                    <input type="text" id="notif-target-uid" class="form-input" placeholder="user UID or leave blank">
-                </div>
-                <div>
-                    <label class="form-label block mb-2">Title</label>
-                    <input type="text" id="notif-title" class="form-input" placeholder="Notification title" required>
-                </div>
-                <div>
-                    <label class="form-label block mb-2">Message</label>
-                    <textarea id="notif-body" class="form-input" rows="3" placeholder="Notification body" required></textarea>
-                </div>
-                <div>
-                    <label class="form-label block mb-2">Optional URL</label>
-                    <input type="text" id="notif-url" class="form-input" placeholder="/subject.html?id=...">
-                </div>
-                <div>
-                    <button id="send-notif-btn" type="submit" class="submit-btn">Send Notification</button>
-                </div>
-                <p id="notif-status" class="text-center text-green-600 mt-2 h-4"></p>
-            </form>
-        </div>
+        <!-- Notifications temporarily disabled -->
     </div>
     <script type="module" src="./js/admin.js"></script>
 </body>

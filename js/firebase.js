@@ -21,3 +21,4 @@ const app = initializeApp(firebaseConfig);
 // Initialize and export Firebase services
 export const auth = getAuth(app);
 export const db = getFirestore(app);
+// Notifications temporarily disabled. OneSignal/FCM integration removed for now.

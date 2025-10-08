@@ -14,9 +14,7 @@
         import Theme from './js/theme.js';
         Theme.initTheme();
     </script>
-    <script type="module">
-        import './js/notifications.js';
-    </script>
+    <!-- notifications removed -->
 </head>
 <body class="text-gray-800">
 
@@ -32,7 +30,10 @@
     <main class="container mx-auto max-w-5xl p-6">
         
         <section class="mb-8">
-            <img id="subject-large-cover" src="" alt="Subject Cover" class="w-full object-cover rounded-lg shadow-lg">
+            <div class="relative">
+                <img id="subject-large-cover" src="" alt="Subject Cover" class="w-full object-cover rounded-lg shadow-lg">
+                <!-- Subscribe (bell) removed -->
+            </div>
         </section>
 
         <section>

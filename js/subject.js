@@ -3,6 +3,7 @@
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
 import { doc, getDoc, collection, getDocs, query, orderBy, where } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+import { setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 import { showLoader, hideLoader } from './loader.js';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -17,6 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const largeCoverEl = document.getElementById('subject-large-cover');
     const quizzesListEl = document.getElementById('quizzes-list');
+    const subscribeBell = document.getElementById('subscribe-bell');
     
     // ADDED: Get header elements
     const usernameHeader = document.getElementById('username-header');
@@ -54,6 +56,8 @@ document.addEventListener('DOMContentLoaded', () => {
             console.error("Error fetching user data for header:", error);
         }
     };
+
+    // Subscription/notification UI removed for now.
 
 
     const displaySubjectDetails = async (user = null) => {
