@@ -37,11 +37,16 @@ export function calculateAdvancedPoints(perQuestion) {
       qid: p.id,
       basePoints: base,
       earnedPoints: earned,
+      // also expose `points` and `maxPoints` for legacy/consumer code
+      points: earned,
+      maxPoints: base,
       multiplier,
       correct: !!p.correct,
-      userAnswer: p.userAnswer ?? null,
-      correctIndex: p.correctIndex ?? null,
-      text: p.text ?? ''
+      userAnswer: (typeof p.userAnswer !== 'undefined') ? p.userAnswer : null,
+      correctIndex: (typeof p.correctIndex !== 'undefined') ? p.correctIndex : null,
+      text: p.text ?? '',
+      // include options if available so UI previews can show choices
+      options: Array.isArray(p.options) ? p.options : []
     };
   });
 

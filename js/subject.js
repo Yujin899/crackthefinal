@@ -32,7 +32,19 @@ document.addEventListener('DOMContentLoaded', () => {
             const userDoc = await getDoc(userDocRef);
             if (userDoc.exists()) {
                 const userData = userDoc.data();
-                usernameHeader.textContent = userData.username;
+                // Only show the username text on medium+ screens; on small screens keep avatar-only
+                const mdMq = window.matchMedia('(min-width: 768px)');
+                const syncUsernameVisibility = () => {
+                    if (mdMq.matches) {
+                        usernameHeader.textContent = userData.username;
+                        usernameHeader.classList.remove('hidden');
+                    } else {
+                        usernameHeader.classList.add('hidden');
+                    }
+                };
+                syncUsernameVisibility();
+                // listen for viewport changes so header updates responsively
+                if (mdMq.addEventListener) mdMq.addEventListener('change', syncUsernameVisibility); else mdMq.addListener(syncUsernameVisibility);
                 avatarHeader.innerHTML = `<img src="${userData.avatar}" alt="User Avatar" class="w-10 h-10 rounded-full object-cover">`;
             }
         } catch (error) {
@@ -98,18 +110,28 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // If we have a signed-in user, fetch their attempts for this subject and compute best totalPoints per quiz
-        let bestPointsByQuiz = new Map();
+        // If we have a signed-in user, fetch their attempts for this subject and compute average percent per quiz
+        // We'll use the average percent of the previous quiz to decide unlocks (e.g., need 60% on quiz 1 to unlock quiz 2)
+        let avgPercentByQuiz = new Map();
         if (user) {
             try {
                 const attemptsQuery = query(collection(db, 'users', user.uid, 'attempts'), where('subjectId', '==', subjectId));
                 const attemptsSnap = await getDocs(attemptsQuery);
+                // accumulate totals and counts per quiz
+                const totals = new Map();
+                const counts = new Map();
                 attemptsSnap.forEach(doc => {
                     const data = doc.data();
                     const qid = data.quizId;
-                    const pts = typeof data.totalPoints === 'number' ? data.totalPoints : 0;
-                    const prev = bestPointsByQuiz.get(qid) || 0;
-                    if (pts > prev) bestPointsByQuiz.set(qid, pts);
+                    const pct = typeof data.percent === 'number' ? data.percent : (typeof data.percent === 'string' ? parseFloat(data.percent) || 0 : 0);
+                    if (!totals.has(qid)) { totals.set(qid, 0); counts.set(qid, 0); }
+                    totals.set(qid, totals.get(qid) + pct);
+                    counts.set(qid, counts.get(qid) + 1);
+                });
+                // compute averages
+                totals.forEach((total, qid) => {
+                    const cnt = counts.get(qid) || 1;
+                    avgPercentByQuiz.set(qid, Math.round(total / cnt));
                 });
             } catch (e) {
                 console.error('Error fetching user attempts for subject:', e);
@@ -129,20 +151,20 @@ document.addEventListener('DOMContentLoaded', () => {
             const quiz = quizzes[i].data;
             const quizURL = `/quiz.html?subjectId=${subjectId}&quizId=${quizId}`;
 
-            // determine required points to unlock this quiz: quiz -> subject -> default 60
-            const requiredPoints = typeof quiz.minPointsToUnlock === 'number'
+            // determine required percent to unlock this quiz: quiz -> subject -> default 60
+            const requiredPercent = typeof quiz.minPointsToUnlock === 'number'
                 ? quiz.minPointsToUnlock
                 : (typeof subjectDoc.data().minPointsToUnlock === 'number' ? subjectDoc.data().minPointsToUnlock : 60);
 
             // first quiz is never locked
             let locked = false;
-            let userPointsOnPrev = 0;
+            let userAvgPercentOnPrev = 0;
             if (i === 0) {
                 locked = false;
             } else {
                 const prevQuizId = quizzes[i - 1].id;
-                userPointsOnPrev = bestPointsByQuiz.get(prevQuizId) || 0;
-                locked = requiredPoints > 0 && userPointsOnPrev < requiredPoints;
+                userAvgPercentOnPrev = avgPercentByQuiz.get(prevQuizId) || 0;
+                locked = requiredPercent > 0 && userAvgPercentOnPrev < requiredPercent;
             }
 
             // check releaseAt (can be Firestore Timestamp or ISO string)
@@ -168,12 +190,12 @@ document.addEventListener('DOMContentLoaded', () => {
                             <h3 class="font-semibold text-lg text-slate-900 break-words">${quiz.name}</h3>
                             <div class="hidden sm:flex flex-shrink-0 items-center gap-2 text-sm text-gray-500">
                                 <svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-5 w-5 text-gray-400\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M5 8V6a5 5 0 1110 0v2h1a1 1 0 011 1v8a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1h1zm2-2a3 3 0 116 0v2H7V6z\" clip-rule=\"evenodd\"/></svg>
-                                <span>Locked: need ${requiredPoints} pts (you: ${userPointsOnPrev} pts)</span>
+                                <span>Locked: need ${requiredPercent}% (you: ${userAvgPercentOnPrev}%)</span>
                             </div>
                         </div>
                         <div class="mt-2 sm:hidden text-sm text-gray-500 flex items-start gap-2">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 8V6a5 5 0 1110 0v2h1a1 1 0 011 1v8a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1h1zm2-2a3 3 0 116 0v2H7V6z" clip-rule="evenodd"/></svg>
-                            <span class="break-words">Locked: need ${requiredPoints} pts in previous quiz (you: ${userPointsOnPrev} pts)</span>
+                            <span class="break-words">Locked: need ${requiredPercent}% in previous quiz (you: ${userAvgPercentOnPrev}%)</span>
                         </div>
                     </div>
                 `;

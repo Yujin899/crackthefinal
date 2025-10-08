@@ -349,22 +349,34 @@ document.addEventListener('DOMContentLoaded', () => {
                     qTitle.textContent = `${i+1}. ${d.text || 'Question'}`;
                     row.appendChild(qTitle);
 
-                    // options list
-                    if (Array.isArray(d.options)) {
-                        d.options.forEach((opt, oi) => {
+
+                    // options list - robust to different attempt.detail shapes
+                    const options = Array.isArray(d.options) ? d.options : (Array.isArray(d.opts) ? d.opts : []);
+                    const correctIndex = (typeof d.correctIndex !== 'undefined') ? d.correctIndex : (typeof d.correct === 'number' ? d.correct : null);
+                    const userAnswer = (typeof d.userAnswer !== 'undefined') ? d.userAnswer : (typeof d.userSelected === 'number' ? d.userSelected : null);
+
+                    if (options.length > 0) {
+                        options.forEach((opt, oi) => {
                             const optRow = document.createElement('div');
                             optRow.className = 'flex items-center gap-3 py-1';
 
                             const mark = document.createElement('div');
                             mark.className = 'w-5 h-5 rounded-full flex items-center justify-center';
-                            if (oi === d.correctIndex) {
-                                mark.style.background = '#10b981';
+                            // correct answer
+                            if (oi === correctIndex) {
+                                mark.classList.add('ctf-mark-correct');
                                 mark.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 00-1.414-1.414L8 11.172 4.707 7.879a1 1 0 00-1.414 1.414l4 4a1 1 0 001.414 0l8-8z" clip-rule="evenodd"/></svg>';
-                            } else if (oi === d.userAnswer) {
-                                mark.style.background = (d.userAnswer === d.correctIndex) ? '#10b981' : '#ef4444';
-                                mark.innerHTML = d.userAnswer === d.correctIndex ? '<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 00-1.414-1.414L8 11.172 4.707 7.879a1 1 0 00-1.414 1.414l4 4a1 1 0 001.414 0l8-8z" clip-rule="evenodd"/></svg>' : '<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6.293 6.293a1 1 0 011.414 0L10 8.586l2.293-2.293a1 1 0 111.414 1.414L11.414 10l2.293 2.293a1 1 0 01-1.414 1.414L10 11.414l-2.293 2.293a1 1 0 01-1.414-1.414L8.586 10 6.293 7.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>';
+                            } else if (oi === userAnswer) {
+                                // user's chosen answer: show green if correct, red if wrong
+                                if (userAnswer === correctIndex) {
+                                    mark.classList.add('ctf-mark-correct');
+                                    mark.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 00-1.414-1.414L8 11.172 4.707 7.879a1 1 0 00-1.414 1.414l4 4a1 1 0 001.414 0l8-8z" clip-rule="evenodd"/></svg>';
+                                } else {
+                                    mark.classList.add('ctf-mark-wrong');
+                                    mark.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-white" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M6.293 6.293a1 1 0 011.414 0L10 8.586l2.293-2.293a1 1 0 111.414 1.414L11.414 10l2.293 2.293a1 1 0 01-1.414 1.414L10 11.414l-2.293 2.293a1 1 0 01-1.414-1.414L8.586 10 6.293 7.707a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>';
+                                }
                             } else {
-                                mark.style.border = '1px solid #e5e7eb';
+                                mark.classList.add('ctf-mark-neutral');
                             }
 
                             const label = document.createElement('div');
@@ -376,9 +388,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         });
                     }
 
+                    // points: support multiple field names (points, earnedPoints, basePoints)
+                    const pointsVal = (typeof d.points !== 'undefined') ? d.points : ((typeof d.earnedPoints !== 'undefined') ? d.earnedPoints : ((typeof d.basePoints !== 'undefined') ? d.basePoints : 0));
+                    const maxVal = (typeof d.maxPoints !== 'undefined') ? d.maxPoints : ((typeof d.basePoints !== 'undefined') ? d.basePoints : 0);
                     const pointsRow = document.createElement('div');
-                    pointsRow.className = 'mt-2 text-sm text-gray-600';
-                    pointsRow.textContent = `Points: ${d.points} `;
+                    pointsRow.className = 'mt-2 text-sm text-gray-600 ctf-points';
+                    pointsRow.textContent = `Points: ${pointsVal} ${maxVal ? `/ ${maxVal}` : ''}`;
                     row.appendChild(pointsRow);
 
                     body.appendChild(row);

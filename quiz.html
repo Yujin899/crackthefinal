@@ -16,6 +16,25 @@
       border-radius: 8px;
     }
 
+    /* Force nav arrows to be vertically centered and keep consistent sizing on both sides */
+    #nav-left, #nav-right {
+      top: 50% !important;
+      transform: translateY(-50%) !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+    }
+
+    /* Ensure the submit button remains a circle on hover and keeps a high-contrast hover background */
+    #nav-right.bg-blue-500, #nav-right.bg-blue-500:hover {
+      border-radius: 9999px !important;
+      box-shadow: 0 8px 24px rgba(30,64,175,0.12) !important;
+    }
+    #nav-right.bg-blue-500:hover {
+      background-color: #1e40af !important; /* darker blue */
+      color: #fff !important;
+    }
+
     @media (max-width: 640px) {
       #answers-body {
         background-size: 180px; /* scaled down but still prominent on phones */

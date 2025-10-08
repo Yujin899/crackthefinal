@@ -1,6 +1,6 @@
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
-import { collection, getDocs, query, orderBy, addDoc, serverTimestamp, doc, getDoc, updateDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+import { collection, getDocs, query, orderBy, addDoc, serverTimestamp, doc, getDoc, updateDoc, where, limit } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 import { showLoader, hideLoader } from './loader.js';
 import { calculateAdvancedPoints, applyPointsToUser } from './points.js';
 
@@ -75,14 +75,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!currentUser) return null;
     try {
       // compute advanced points (streak, multiplier, bonuses)
-      const adv = calculateAdvancedPoints(resultSummary.perQuestion.map(p => ({
-        id: p.id,
-        maxPoints: p.maxPoints || p.maxPoints || 1,
-        correct: p.correct,
-        userAnswer: p.userAnswer,
-        correctIndex: p.correctIndex,
-        text: p.text
-      })));
+  // Determine if this is the first attempt for this quiz by this user. If so, we'll apply points.
+  const prevAttemptsQuery = query(collection(db, 'users', currentUser.uid, 'attempts'), where('quizId', '==', quizId), limit(1));
+  const prevAttemptsSnap = await getDocs(prevAttemptsQuery);
+  const isFirstAttempt = prevAttemptsSnap.empty;
+
+  // Pass the full perQuestion objects so the points engine can access options, text and indexes
+  const adv = calculateAdvancedPoints(resultSummary.perQuestion);
 
       const attempt = {
         quizId,
@@ -99,11 +98,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const ref = await addDoc(collection(db, 'users', currentUser.uid, 'attempts'), attempt);
 
-      // apply points to user doc
-      try {
-        await applyPointsToUser(db, currentUser.uid, adv.totalPoints, adv.maxStreak);
-      } catch (e) {
-        console.error('Error applying points to user after attempt:', e);
+      // apply points to user doc only on the first attempt for this quiz
+      if (isFirstAttempt) {
+        try {
+          await applyPointsToUser(db, currentUser.uid, adv.totalPoints, adv.maxStreak);
+        } catch (e) {
+          console.error('Error applying points to user after attempt:', e);
+        }
+      } else {
+        console.log('Points not applied: user has attempted this quiz before.');
       }
 
       return ref.id;
