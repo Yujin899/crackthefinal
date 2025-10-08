@@ -313,8 +313,15 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             hideLoader();
         } catch (err) {
-            console.error('Error fetching attempts:', err);
-            attemptsListEl.innerHTML = '<p class="text-red-500">Error loading attempts.</p>';
+            // Handle permission-denied more gracefully (common when Firestore rules restrict access)
+            const msg = (err && err.code) ? err.code : (err && err.message ? err.message : String(err));
+            if (msg === 'permission-denied' || (typeof msg === 'string' && msg.toLowerCase().includes('missing or insufficient permissions'))) {
+                console.warn('Permission denied when fetching attempts (expected for some accounts):', err);
+                attemptsListEl.innerHTML = `<p class="text-yellow-600">You don't have permission to view attempts. If you believe this is an error, please sign in with the correct account or contact support.</p>`;
+            } else {
+                console.error('Error fetching attempts:', err);
+                attemptsListEl.innerHTML = '<p class="text-red-500">Error loading attempts.</p>';
+            }
             hideLoader();
         }
     };

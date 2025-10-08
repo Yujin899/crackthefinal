@@ -152,7 +152,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             await signInWithEmailAndPassword(auth, email, password);
-            window.location.href = '/home.html';
+            // After successful sign-in, send users to the main index page
+            window.location.href = '/index.html';
         } catch (error) {
             hideLoadingState(signInButton, signInButtonText);
             console.error("Sign in error:", error.code, error.message);
