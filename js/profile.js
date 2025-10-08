@@ -225,6 +225,14 @@ document.addEventListener('DOMContentLoaded', () => {
         const avgPercentEl = document.getElementById('average-percent');
 
         attemptsListEl.innerHTML = '<p class="text-gray-500">Loading attempts...</p>';
+        // Guard: only attempt to read the attempts collection if the currently authenticated user
+        // matches the uid requested. This avoids permission-denied errors when auth state is out
+        // of sync or the page is loaded for a different user id.
+        if (!auth.currentUser || auth.currentUser.uid !== uid) {
+            attemptsListEl.innerHTML = '<p class="text-gray-500">Sign in to view your attempts.</p>';
+            hideLoader();
+            return;
+        }
         try {
             const attemptsQuery = query(collection(db, 'users', uid, 'attempts'), orderBy('createdAt', 'desc'));
             const snap = await getDocs(attemptsQuery);
@@ -316,8 +324,9 @@ document.addEventListener('DOMContentLoaded', () => {
             // Handle permission-denied more gracefully (common when Firestore rules restrict access)
             const msg = (err && err.code) ? err.code : (err && err.message ? err.message : String(err));
             if (msg === 'permission-denied' || (typeof msg === 'string' && msg.toLowerCase().includes('missing or insufficient permissions'))) {
-                console.warn('Permission denied when fetching attempts (expected for some accounts):', err);
-                attemptsListEl.innerHTML = `<p class="text-yellow-600">You don't have permission to view attempts. If you believe this is an error, please sign in with the correct account or contact support.</p>`;
+                // Don't print the full FirebaseError object to the console to avoid noisy stacks in the UI console.
+                console.warn('Permission denied when fetching attempts.');
+                attemptsListEl.innerHTML = `<p class="text-yellow-600">You don't have permission to view attempts. Please sign in with the account that owns these attempts, or contact support.</p>`;
             } else {
                 console.error('Error fetching attempts:', err);
                 attemptsListEl.innerHTML = '<p class="text-red-500">Error loading attempts.</p>';
