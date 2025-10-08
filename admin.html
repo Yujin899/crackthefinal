@@ -116,6 +116,32 @@
                 <p class="text-gray-500">Loading subjects...</p>
             </div>
         </div>
+        
+        <div class="admin-card p-6 mt-8">
+            <h2 class="text-2xl font-bold mb-6 border-b pb-4">5. Send Notification</h2>
+            <form id="send-notification-form" class="space-y-4">
+                <div>
+                    <label class="form-label block mb-2">Target user UID (leave empty to broadcast)</label>
+                    <input type="text" id="notif-target-uid" class="form-input" placeholder="user UID or leave blank">
+                </div>
+                <div>
+                    <label class="form-label block mb-2">Title</label>
+                    <input type="text" id="notif-title" class="form-input" placeholder="Notification title" required>
+                </div>
+                <div>
+                    <label class="form-label block mb-2">Message</label>
+                    <textarea id="notif-body" class="form-input" rows="3" placeholder="Notification body" required></textarea>
+                </div>
+                <div>
+                    <label class="form-label block mb-2">Optional URL</label>
+                    <input type="text" id="notif-url" class="form-input" placeholder="/subject.html?id=...">
+                </div>
+                <div>
+                    <button id="send-notif-btn" type="submit" class="submit-btn">Send Notification</button>
+                </div>
+                <p id="notif-status" class="text-center text-green-600 mt-2 h-4"></p>
+            </form>
+        </div>
     </div>
     <script type="module" src="./js/admin.js"></script>
 </body>

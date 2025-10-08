@@ -202,6 +202,46 @@ document.addEventListener('DOMContentLoaded', () => {
                     adminPanelButton.classList.remove('hidden');
                 }
 
+                // notifications preference
+                const notifToggle = document.getElementById('notif-toggle');
+                const notifPrefStatus = document.getElementById('notif-pref-status');
+                if (notifToggle) {
+                    const enabled = (typeof userData.notificationsEnabled === 'boolean') ? userData.notificationsEnabled : true;
+                    notifToggle.checked = enabled;
+                    notifPrefStatus.textContent = enabled ? 'Notifications enabled' : 'Notifications disabled';
+                    notifToggle.addEventListener('change', async (e) => {
+                        const turnOn = e.target.checked;
+                        // If turning on, request browser notification permission (optional)
+                        if (turnOn && 'Notification' in window) {
+                            if (Notification.permission === 'default') {
+                                try {
+                                    const perm = await Notification.requestPermission();
+                                    if (perm !== 'granted') {
+                                        // user denied; toggle back
+                                        notifToggle.checked = false;
+                                        alert('Please allow browser notifications to enable push reminders. In-app notifications will still appear when you visit the site.');
+                                        return;
+                                    }
+                                } catch (err) {
+                                    console.warn('Notification permission request failed:', err);
+                                }
+                            } else if (Notification.permission === 'denied') {
+                                alert('Browser notifications are blocked. Please enable them in your browser settings if you want reminders while away.');
+                                notifToggle.checked = false;
+                                return;
+                            }
+                        }
+                        try {
+                            await updateDoc(doc(db, 'users', user.uid), { notificationsEnabled: turnOn });
+                            notifPrefStatus.textContent = turnOn ? 'Notifications enabled' : 'Notifications disabled';
+                        } catch (err) {
+                            console.error('Could not save notification preference:', err);
+                            alert('Could not save notification preference.');
+                            notifToggle.checked = !turnOn;
+                        }
+                    });
+                }
+
                 // fetch attempts and render analytics
                 fetchAndRenderAttempts(user.uid);
 

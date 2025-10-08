@@ -383,4 +383,39 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         hideLoader();
     };
+
+    // --- Notifications: Send from admin UI ---
+    const sendNotifForm = document.getElementById('send-notification-form');
+    const sendNotifBtn = document.getElementById('send-notif-btn');
+    const notifStatus = document.getElementById('notif-status');
+    if (sendNotifForm) {
+        sendNotifForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const targetUid = document.getElementById('notif-target-uid').value.trim();
+            const title = document.getElementById('notif-title').value.trim();
+            const body = document.getElementById('notif-body').value.trim();
+            const url = document.getElementById('notif-url').value.trim();
+            if (!title || !body) {
+                showStatus(notifStatus, 'Please provide title and message', true);
+                return;
+            }
+            try {
+                showLoader('Sending notification...');
+                if (targetUid) {
+                    // send to specific user
+                    await addDoc(collection(db, 'users', targetUid, 'notifications'), { title, body, url: url || null, createdAt: new Date(), seen: false });
+                } else {
+                    // create a broadcast doc (admin/operator can later process or Cloud Function can deliver to users)
+                    await addDoc(collection(db, 'broadcastNotifications'), { title, body, url: url || null, createdAt: new Date() });
+                }
+                showStatus(notifStatus, 'Notification queued.');
+                sendNotifForm.reset();
+            } catch (err) {
+                console.error('Error sending notification:', err);
+                showStatus(notifStatus, 'Error sending notification', true);
+            } finally {
+                hideLoader();
+            }
+        });
+    }
 });

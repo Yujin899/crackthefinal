@@ -11,6 +11,7 @@ import { collection, query, orderBy, onSnapshot, addDoc, serverTimestamp, doc, u
 const REMINDER_DAYS = 3; // if user away longer than this, show a friendly reminder on return
 
 let knownNotifications = new Set();
+let notificationsEnabled = true; // per-user preference (default true)
 
 function ensureToastContainer() {
   let c = document.getElementById('toast-container');
@@ -99,6 +100,16 @@ export function initNotifications() {
   onAuthStateChanged(auth, async (user) => {
     if (unsub) { try { unsub(); } catch(e){} unsub = null; }
     if (user) {
+      // read user's preference for in-app notifications
+      try {
+        const ud = await getDoc(doc(db, 'users', user.uid));
+        if (ud && ud.exists()) {
+          const d = ud.data();
+          notificationsEnabled = (typeof d.notificationsEnabled === 'boolean') ? d.notificationsEnabled : true;
+        }
+      } catch (e) {
+        console.warn('Could not read notifications preference:', e);
+      }
       // mark active
       try { await updateDoc(doc(db, 'users', user.uid), { lastSeenAtClient: serverTimestamp() }); } catch(e){}
       // mark active on server
@@ -106,7 +117,7 @@ export function initNotifications() {
       // show return reminder when user signs in after a while
       try { await checkAndShowReturnReminder(user.uid); } catch(e){}
       // listen for realtime notifications
-      unsub = listenForNotifications(user.uid);
+  unsub = listenForNotifications(user.uid);
       // update lastActive on visibility change
       const onVisible = () => { try { markUserActive(user.uid); } catch(e){} };
       document.addEventListener('visibilitychange', () => { if (!document.hidden) onVisible(); });
