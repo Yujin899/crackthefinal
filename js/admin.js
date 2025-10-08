@@ -1,7 +1,7 @@
 // admin.js
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
-import { doc, getDoc, collection, getDocs, addDoc, writeBatch } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+import { doc, getDoc, collection, getDocs, addDoc, writeBatch, updateDoc } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 import { showLoader, hideLoader } from './loader.js';
 
 // --- Cloudinary Configuration ---
@@ -38,12 +38,13 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => element.textContent = '', 4000);
     };
 
-    const uploadImage = (file, onProgress) => {
+    const uploadImage = (file, onProgress, opts = {}) => {
         return new Promise((resolve, reject) => {
             if (!file) return reject(new Error("No file selected for upload."));
             const formData = new FormData();
             formData.append('file', file);
             formData.append('upload_preset', UPLOAD_PRESET);
+            if (opts.publicId) formData.append('public_id', opts.publicId);
             const xhr = new XMLHttpRequest();
             xhr.open('POST', CLOUDINARY_URL, true);
             xhr.upload.onprogress = (event) => {
@@ -58,8 +59,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (data.error) return reject(new Error(`Cloudinary Error: ${data.error.message}`));
                     if (!data.secure_url && !data.public_id) return reject(new Error("Cloudinary did not return a URL or public_id."));
                     // Build optimized URL if public_id is present
-                    const publicId = data.public_id || null;
-                    const optimized = publicId ? `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/q_auto,f_auto,w_800/${encodeURIComponent(publicId)}.png` : data.secure_url;
+                    const publicId = data.public_id || opts.publicId || null;
+                    // Allow caller to request a target width for the optimized delivery URL (defaults to 800)
+                    const targetWidth = opts.width || 800;
+                    const optimized = publicId ? `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/q_auto,f_auto,w_${targetWidth}/${encodeURIComponent(publicId)}.png` : data.secure_url;
                     resolve({ secure_url: data.secure_url, public_id: publicId, optimizedUrl: optimized });
                 } else {
                     reject(new Error(`Upload failed with status: ${xhr.status}`));
@@ -110,6 +113,120 @@ document.addEventListener('DOMContentLoaded', () => {
             finally { hideLoader(); }
         };
         await populateSubjectsDropdowns();
+
+        // --- Subjects management UI ---
+        const subjectsManageList = document.getElementById('subjects-manage-list');
+        const populateSubjectsManage = async () => {
+            subjectsManageList.innerHTML = '<p class="text-gray-500">Loading subjects...</p>';
+            try {
+                const snap = await getDocs(collection(db, 'subjects'));
+                if (snap.empty) {
+                    subjectsManageList.innerHTML = '<p class="text-gray-500">No subjects yet.</p>';
+                    return;
+                }
+                const rows = snap.docs.map(doc => {
+                    const d = doc.data();
+                    return `
+                            <div class="flex items-center gap-4 p-3 border-b">
+                                <div class="w-20 h-12 overflow-hidden rounded bg-gray-100"><img src="${d.smallCoverUrl||''}" class="w-full h-full object-cover" loading="lazy"></div>
+                                <div class="flex-1">
+                                    <div class="font-semibold">${d.name}</div>
+                                    <div class="text-sm text-gray-500">id: ${doc.id}</div>
+                                </div>
+                                <div class="flex gap-2">
+                                    <label class="btn-replace px-3 py-1 bg-yellow-500 text-white rounded cursor-pointer">Replace Small
+                                        <input type="file" accept="image/*" data-subject-id="${doc.id}" data-target="small" class="replace-input-small hidden">
+                                    </label>
+                                    <label class="btn-replace px-3 py-1 bg-green-600 text-white rounded cursor-pointer">Replace Large
+                                        <input type="file" accept="image/*" data-subject-id="${doc.id}" data-target="large" class="replace-input-large hidden">
+                                    </label>
+                                    <label class="btn-replace px-3 py-1 bg-blue-500 text-white rounded cursor-pointer">Replace Both
+                                        <input type="file" accept="image/*" data-subject-id="${doc.id}" class="replace-input-both hidden">
+                                    </label>
+                                </div>
+                            </div>
+                        `;
+                }).join('\n');
+                subjectsManageList.innerHTML = rows;
+                    // wire replace inputs - small only
+                    document.querySelectorAll('.replace-input-small').forEach(input => {
+                        input.addEventListener('change', async (e) => {
+                            const file = e.target.files[0];
+                            if (!file) return;
+                            const subjectId = e.target.getAttribute('data-subject-id');
+                            const smallPublicId = `subject_small_${subjectId}`;
+                            try {
+                                showLoader('Uploading small cover...');
+                                const smallRes = await uploadImage(file, () => {}, { publicId: smallPublicId, width: 400 });
+                                const smallCoverUrl = smallRes.optimizedUrl || smallRes.secure_url;
+                                await updateDoc(doc(db, 'subjects', subjectId), { smallCoverUrl });
+                                await populateSubjectsManage();
+                                showStatus(document.getElementById('subject-status') || document.body, 'Small cover updated');
+                            } catch (err) {
+                                console.error('Error replacing small cover:', err);
+                                showStatus(document.getElementById('subject-status') || document.body, 'Error updating small cover', true);
+                            } finally {
+                                hideLoader();
+                            }
+                        });
+                    });
+
+                    // wire replace inputs - large only
+                    document.querySelectorAll('.replace-input-large').forEach(input => {
+                        input.addEventListener('change', async (e) => {
+                            const file = e.target.files[0];
+                            if (!file) return;
+                            const subjectId = e.target.getAttribute('data-subject-id');
+                            const largePublicId = `subject_large_${subjectId}`;
+                            try {
+                                showLoader('Uploading large cover...');
+                                const largeRes = await uploadImage(file, () => {}, { publicId: largePublicId, width: 1200 });
+                                const largeCoverUrl = largeRes.optimizedUrl || largeRes.secure_url;
+                                await updateDoc(doc(db, 'subjects', subjectId), { largeCoverUrl });
+                                await populateSubjectsManage();
+                                showStatus(document.getElementById('subject-status') || document.body, 'Large cover updated');
+                            } catch (err) {
+                                console.error('Error replacing large cover:', err);
+                                showStatus(document.getElementById('subject-status') || document.body, 'Error updating large cover', true);
+                            } finally {
+                                hideLoader();
+                            }
+                        });
+                    });
+
+                    // wire replace inputs - both (legacy behavior)
+                    document.querySelectorAll('.replace-input-both').forEach(input => {
+                        input.addEventListener('change', async (e) => {
+                            const file = e.target.files[0];
+                            if (!file) return;
+                            const subjectId = e.target.getAttribute('data-subject-id');
+                            const smallPublicId = `subject_small_${subjectId}`;
+                            const largePublicId = `subject_large_${subjectId}`;
+                            try {
+                                showLoader('Uploading new covers...');
+                                // Upload twice: small and large variants (we'll upload same file but store urls under different public ids)
+                                const [smallRes, largeRes] = await Promise.all([
+                                    uploadImage(file, () => {}, { publicId: smallPublicId, width: 400 }),
+                                    uploadImage(file, () => {}, { publicId: largePublicId, width: 1200 })
+                                ]);
+                                const smallCoverUrl = smallRes.optimizedUrl || smallRes.secure_url;
+                                const largeCoverUrl = largeRes.optimizedUrl || largeRes.secure_url;
+                                await updateDoc(doc(db, 'subjects', subjectId), { smallCoverUrl, largeCoverUrl });
+                                await populateSubjectsManage();
+                                showStatus(document.getElementById('subject-status') || document.body, 'Covers updated');
+                            } catch (err) {
+                                console.error('Error replacing covers:', err);
+                                showStatus(document.getElementById('subject-status') || document.body, 'Error updating covers', true);
+                            } finally {
+                                hideLoader();
+                            }
+                        });
+                    });
+            } catch (err) {
+                subjectsManageList.innerHTML = '<p class="text-red-500">Error loading subjects.</p>';
+            }
+        };
+        await populateSubjectsManage();
 
         // --- Event Listeners ---
         
