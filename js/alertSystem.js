@@ -121,23 +121,29 @@ class AlertSystem {
         // build modal/backdrop
         this.modalOpen = true;
         const backdrop = document.createElement('div');
-        backdrop.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center';
+        backdrop.className = 'fixed inset-0 bg-black bg-opacity-40 z-50 flex items-center justify-center';
         backdrop.id = `global-alert-backdrop-${alertId}`;
+        // Add blur for backdrop (works even if Tailwind utilities are not available)
+        backdrop.style.backdropFilter = 'blur(6px)';
+        backdrop.style.webkitBackdropFilter = 'blur(6px)';
 
         const dialog = document.createElement('div');
-        dialog.className = 'bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full m-4 p-6 z-60';
+        // narrower dialog, centered content, padding, and relative so close icon can position
+        dialog.className = 'bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full m-4 p-6 z-60 relative';
         dialog.setAttribute('role','dialog');
         dialog.setAttribute('aria-modal','true');
         dialog.innerHTML = `
-            <div class="flex justify-between items-start">
-                <div>
-                    <h3 class="text-lg font-semibold">${alertData.title || 'Announcement'}</h3>
-                    <p class="mt-2 text-sm text-gray-700 dark:text-gray-300">${alertData.message || ''}</p>
-                </div>
+            <button id="global-alert-close" aria-label="Close" class="absolute top-3 right-3 text-gray-600 dark:text-gray-300 hover:text-gray-900">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                </svg>
+            </button>
+            <div class="flex flex-col items-center text-center">
+                <h3 class="text-lg font-semibold mb-2">${alertData.title || 'Announcement'}</h3>
+                <p class="text-sm text-gray-700 dark:text-gray-300">${alertData.message || ''}</p>
             </div>
-            <div class="mt-4 flex justify-end gap-3">
+            <div class="mt-6 flex justify-center">
                 <button id="global-alert-ok" class="px-4 py-2 bg-blue-600 text-white rounded">OK</button>
-                <button id="global-alert-close" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded">Close</button>
             </div>
         `;
 
