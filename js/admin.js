@@ -4,6 +4,9 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.3.0/fi
 import { doc, getDoc, collection, getDocs, addDoc, writeBatch, updateDoc, collectionGroup, where, query } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 import { showLoader, hideLoader } from './loader.js';
 
+// Debug stamp: update this string to force cache-bypass verification in browser console
+console.log('admin.js loaded - delete-fix v2025-10-09.1');
+
 // --- Cloudinary Configuration ---
 const CLOUD_NAME = "dqiwsls5y";
 const UPLOAD_PRESET = "crackthefinal";
@@ -57,41 +60,56 @@ document.addEventListener('DOMContentLoaded', () => {
             );
 
             activeAlertsList.innerHTML = '';
-            alertsSnapshot.forEach(doc => {
-                const alert = doc.data();
-                        const alertEl = document.createElement('div');
-                        const colorCls = getAlertColorClass(alert.type);
-                        alertEl.className = `p-4 rounded-lg border ${colorCls}`;
+            alertsSnapshot.forEach(docSnap => {
+                const alert = docSnap.data();
+                const alertEl = document.createElement('div');
+                const colorCls = getAlertColorClass(alert.type);
+                alertEl.className = `p-4 rounded-lg border ${colorCls}`;
 
-                        const seenCount = alert.seenBy ? Object.keys(alert.seenBy).length : 0;
+                const seenCount = alert.seenBy ? Object.keys(alert.seenBy).length : 0;
 
-                        alertEl.innerHTML = `
-                            <div class="flex justify-between items-start">
-                                <div>
-                                    <h4 class="font-semibold text-gray-900 dark:text-gray-100">${alert.title}</h4>
-                                    <p class="text-sm mt-1 text-gray-700 dark:text-gray-300">${alert.message}</p>
-                                    <div class="text-xs mt-2 text-gray-600 dark:text-gray-400">
-                                        Published: ${new Date(alert.createdAt).toLocaleString()}
-                                        ${alert.expiresAt ? `<br>Expires: ${new Date(alert.expiresAt).toLocaleString()}` : ''}
-                                        <br>Seen by ${seenCount} users
-                                    </div>
-                                </div>
-                                <button class="delete-alert text-red-600 hover:text-red-400 dark:text-red-300" data-alert-id="${doc.id}" aria-label="Delete alert">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                                    </svg>
-                                </button>
+                alertEl.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h4 class="font-semibold text-gray-900 dark:text-gray-100">${alert.title}</h4>
+                            <p class="text-sm mt-1 text-gray-700 dark:text-gray-300">${alert.message}</p>
+                            <div class="text-xs mt-2 text-gray-600 dark:text-gray-400">
+                                Published: ${new Date(alert.createdAt).toLocaleString()}
+                                ${alert.expiresAt ? `<br>Expires: ${new Date(alert.expiresAt).toLocaleString()}` : ''}
+                                <br>Seen by ${seenCount} users
                             </div>
-                        `;
-                
+                        </div>
+                        <button class="delete-alert text-red-600 hover:text-red-400 dark:text-red-300" data-alert-id="${docSnap.id}" aria-label="Delete alert">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
+                `;
+
                 // Add delete handler
                 alertEl.querySelector('.delete-alert').addEventListener('click', async () => {
                     if (confirm('Are you sure you want to delete this alert?')) {
-                        await updateDoc(doc(db, 'globalAlerts', doc.id), { active: false });
-                        loadActiveAlerts();
+                        try {
+                            // Debug: verify imported `doc` is the function we expect
+                            try { console.debug('delete handler: typeof doc =', typeof doc); } catch(e) {}
+
+                            const alertRef = typeof doc === 'function' ? doc(db, 'globalAlerts', docSnap.id) : null;
+                            if (!alertRef) {
+                                console.error('Firestore `doc` helper is not a function. Cannot delete alert.', doc);
+                                alert('Unable to delete alert: internal error. Check console for details.');
+                                return;
+                            }
+
+                            await updateDoc(alertRef, { active: false });
+                            loadActiveAlerts();
+                        } catch (err) {
+                            console.error('Failed to delete alert:', err, 'doc value:', doc);
+                            alert('Failed to delete alert. See console for details.');
+                        }
                     }
                 });
-                
+
                 activeAlertsList.appendChild(alertEl);
             });
         };
