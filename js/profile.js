@@ -252,14 +252,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 // IMPORTANT: Show admin button only if user is an admin
                 const adminPanelButton = document.getElementById('admin-panel-button');
                 if (adminPanelButton) {
-                    if (userData.isAdmin === true) {
+                    // Accept boolean true or string 'true' (in case Firestore stores it as a string)
+                    const isAdmin = (userData.isAdmin === true) || (String(userData.isAdmin).toLowerCase() === 'true');
+                    if (isAdmin) {
                         // Make the admin button visible and interactive
-                        adminPanelButton.classList.remove('opacity-0', 'pointer-events-none');
+                        adminPanelButton.classList.remove('opacity-0', 'pointer-events-none', 'hidden');
                         adminPanelButton.classList.add('opacity-100');
                         adminPanelButton.setAttribute('data-visible', 'true');
                     } else {
-                        // Ensure hidden for non-admins
-                        adminPanelButton.classList.add('opacity-0', 'pointer-events-none');
+                        // Ensure hidden for non-admins (fully hide and remove interaction)
+                        adminPanelButton.classList.add('opacity-0', 'pointer-events-none', 'hidden');
                         adminPanelButton.classList.remove('opacity-100');
                         adminPanelButton.removeAttribute('data-visible');
                     }
