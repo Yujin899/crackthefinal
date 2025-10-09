@@ -50,9 +50,10 @@ const RECITERS = [
 const style = document.createElement('style');
 style.textContent = `
 /* Light-mode defaults */
-#quran-player-button{position:fixed !important;right:20px !important;bottom:80px !important;z-index:999999 !important;width:56px;height:56px;border-radius:9999px;background:linear-gradient(135deg,#60a5fa,#3b82f6);display:flex !important;align-items:center;justify-content:center;color:white;box-shadow:0 8px 24px rgba(2,6,23,0.15);cursor:grab;touch-action:none;visibility:visible !important;pointer-events:auto !important}
+#quran-player-button{position:fixed !important;right:20px !important;bottom:80px !important;z-index:1000002 !important;width:56px;height:56px;border-radius:9999px;background:linear-gradient(135deg,#60a5fa,#3b82f6);display:flex !important;align-items:center;justify-content:center;color:white;box-shadow:0 8px 24px rgba(2,6,23,0.15);cursor:grab;touch-action:none;visibility:visible !important;pointer-events:auto !important}
 #quran-player-button:active{cursor:grabbing}
-#quran-player-panel{position:fixed;right:20px;bottom:150px;z-index:9999;width:320px;max-width:calc(100% - 40px);background:white;border-radius:12px;box-shadow:0 12px 40px rgba(2,6,23,0.12);overflow:hidden;font-family:inherit;color:#0f1724}
+#quran-player-panel{position:fixed;right:20px;bottom:150px;z-index:1000001;width:320px;max-width:calc(100% - 40px);background:white;border-radius:12px;box-shadow:0 12px 40px rgba(2,6,23,0.12);overflow:hidden;font-family:inherit;color:#0f1724;transform:translateY(8px);opacity:0;transition:transform .22s ease, opacity .22s ease}
+#quran-player-panel.open{transform:translateY(0);opacity:1}
 #quran-player-panel .header{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #f1f5f9}
 #quran-player-panel .body{padding:12px}
 #quran-player-panel .controls{display:flex;gap:8px;align-items:center;justify-content:center;margin-top:8px}
@@ -61,7 +62,11 @@ style.textContent = `
 #quran-player-panel button{background:#1e40af;color:#fff;padding:8px 10px;border-radius:8px;border:0}
 #quran-player-panel .icon-btn{background:#eef2ff;color:#1e3a8a;padding:8px;border-radius:8px;border:0}
 #quran-player-panel .volume{width:100%}
-@media (max-width:420px){#quran-player-panel{right:10px;left:10px;width:auto;bottom:120px}}
+@media (max-width:640px){
+  /* Use a bottom-sheet style on phones/tablets */
+  #quran-player-panel{left:8px;right:8px;bottom:12px;top:auto;width:calc(100% - 16px);max-width:unset;border-radius:12px 12px 6px 6px;max-height:72vh;overflow:auto;box-shadow:0 -12px 36px rgba(2,6,23,0.28);z-index:1000001}
+  #quran-player-panel.open{transform:translateY(0);opacity:1}
+}
 @media (max-width:480px){
     #quran-player-button{width:64px;height:64px;right:14px;bottom:100px}
     #quran-player-button svg{width:26px;height:26px}
@@ -73,6 +78,9 @@ style.textContent = `
 
 /* Force visibility in case page CSS hides fixed elements on small screens */
 #quran-player-button{display:flex !important;visibility:visible !important;opacity:1 !important}
+
+/* Backdrop used for mobile bottom-sheet modal */
+#quran-player-backdrop{position:fixed;left:0;top:0;width:100%;height:100%;background:rgba(0,0,0,0.36);z-index:1000000;display:none}
 
 /* Dark mode: use site variables defined by theme.js for consistent look */
 html.dark #quran-player-button { background: linear-gradient(135deg, var(--ctf-accent,#60a5fa), #1e40af); box-shadow: 0 8px 24px rgba(2,6,23,0.5); color: var(--ctf-text,#e6eef8); }
@@ -140,6 +148,11 @@ function init() {
 
     const btn = createEl(btnHtml);
     const panel = createEl(panelHtml);
+    // Backdrop for mobile/modal-style presentation
+    const backdrop = document.createElement('div');
+    backdrop.id = 'quran-player-backdrop';
+    backdrop.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(backdrop);
     document.body.appendChild(btn);
     document.body.appendChild(panel);
 
@@ -279,19 +292,35 @@ function init() {
 
     // Manage panel visibility and accessibility correctly: use aria-hidden only when hidden
     function updatePanelVisibility(show){
+        const isMobile = window.innerWidth <= 640;
         if (show) {
+            // show backdrop on small viewports
+            if (isMobile) {
+                try { backdrop.style.display = 'block'; backdrop.setAttribute('aria-hidden', 'false'); } catch(e){}
+                // hide the floating button to avoid overlap
+                try { btn.style.opacity = '0'; btn.style.pointerEvents = 'none'; } catch(e){}
+            }
             panel.style.display = 'block';
+            panel.classList.add('open');
             panel.setAttribute('aria-hidden', 'false');
             // focus the first interactive element for keyboard users
             setTimeout(()=>{
                 try { const fb = panel.querySelector('button, [href], input, select, textarea'); if (fb) fb.focus(); } catch(e){}
-            }, 50);
+            }, 70);
             saveState(Object.assign({}, loadState()||{}, { visible: true }));
         } else {
             // when hiding, remove focus from any element inside panel and set aria-hidden
             try { if (document.activeElement && panel.contains(document.activeElement)) { document.activeElement.blur(); } } catch(e){}
-            panel.style.display = 'none';
+            panel.classList.remove('open');
+            // let animation finish before removing from layout on mobile
+            setTimeout(()=>{
+                try { panel.style.display = 'none'; } catch(e){}
+            }, 220);
             panel.setAttribute('aria-hidden', 'true');
+            // hide backdrop
+            if (isMobile) { try { backdrop.style.display = 'none'; backdrop.setAttribute('aria-hidden', 'true'); } catch(e){} }
+            // restore floating button
+            try { btn.style.opacity = '1'; btn.style.pointerEvents = 'auto'; } catch(e){}
             // return focus to the floating button so screen-reader users regain context
             try { btn.focus(); } catch(e){}
             saveState(Object.assign({}, loadState()||{}, { visible: false }));
@@ -483,6 +512,13 @@ function init() {
         updatePanelVisibility(!isShown);
     });
 
+    // Click on backdrop closes panel
+    backdrop.addEventListener('click', () => { updatePanelVisibility(false); });
+
+    // Escape key closes panel
+    function onKeyDown(e){ if (e.key === 'Escape') { updatePanelVisibility(false); } }
+    window.addEventListener('keydown', onKeyDown);
+
     // Draggable
     let dragging = false, startX=0, startY=0, origX=0, origY=0;
     const pos = loadPos();
@@ -552,6 +588,16 @@ function init() {
         }, 500);
     })();
 
+    // Cleanup hook if somebody wants to remove the player
+    window.__quranPlayerCleanup = function(){
+        try { btn.remove(); } catch(e){}
+        try { panel.remove(); } catch(e){}
+        try { backdrop.remove(); } catch(e){}
+        try { window.removeEventListener('keydown', onKeyDown); } catch(e){}
+        try { window.removeEventListener('resize', onResize); } catch(e){}
+        try { window.removeEventListener('orientationchange', onResize); } catch(e){}
+    };
+
     // expose for debugging
     window.quranPlayer = { open: ()=>updatePanelVisibility(true), close: ()=>updatePanelVisibility(false) };
 }
@@ -589,24 +635,15 @@ function autoInit() {
 autoInit();
 
 // Make init function available globally for direct calls
-window.quranPlayer = {
+// Ensure the global object exposes a consistent API without overwriting methods set during init
+window.quranPlayer = Object.assign(window.quranPlayer || {}, {
     init: () => {
-        try {
-            init();
-            return true;
-        } catch (e) {
-            console.warn('Failed to initialize Quran Player:', e);
-            return false;
-        }
+        try { init(); return true; } catch (e) { console.warn('Failed to initialize Quran Player:', e); return false; }
     },
     isEnabled: () => {
-        try {
-            const userPrefs = JSON.parse(localStorage.getItem('userPreferences') || '{}');
-            return !!userPrefs.quranPlayerEnabled;
-        } catch (e) {
-            return false;
-        }
-    }
-};
+        try { const userPrefs = JSON.parse(localStorage.getItem('userPreferences') || '{}'); return !!userPrefs.quranPlayerEnabled; } catch (e) { return false; }
+    },
+    cleanup: () => { try { if (typeof window.__quranPlayerCleanup === 'function') window.__quranPlayerCleanup(); } catch(e){} }
+});
 
 export default window.quranPlayer;
