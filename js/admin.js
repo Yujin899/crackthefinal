@@ -1,7 +1,7 @@
 // admin.js
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
-import { doc, getDoc, collection, getDocs, addDoc, writeBatch, updateDoc, collectionGroup, where, query } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+import { doc as fsDoc, getDoc, collection, getDocs, addDoc, writeBatch, updateDoc, deleteDoc, collectionGroup, where, query } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 import { showLoader, hideLoader } from './loader.js';
 
 // Debug stamp: update this string to force cache-bypass verification in browser console
@@ -18,8 +18,8 @@ const spinnerSVG = `<svg class="animate-spin h-5 w-5 text-white" xmlns="http://w
 document.addEventListener('DOMContentLoaded', () => {
     // --- Admin Access Guard ---
     onAuthStateChanged(auth, async (user) => {
-        if (user) {
-            const userDocRef = doc(db, 'users', user.uid);
+            if (user) {
+            const userDocRef = fsDoc(db, 'users', user.uid);
             const userDoc = await getDoc(userDocRef);
             if (userDoc.exists() && userDoc.data().isAdmin === true) {
                 console.log("Welcome Admin! Initializing page.");
@@ -64,7 +64,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 const alert = docSnap.data();
                 const alertEl = document.createElement('div');
                 const colorCls = getAlertColorClass(alert.type);
-                alertEl.className = `p-4 rounded-lg border ${colorCls}`;
+                // add dark-mode ring and consistent padding for separation
+                alertEl.className = `p-4 rounded-lg border ${colorCls} dark:ring-1 dark:ring-black/20 dark:shadow-sm`;
 
                 const seenCount = alert.seenBy ? Object.keys(alert.seenBy).length : 0;
 
@@ -92,17 +93,23 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (confirm('Are you sure you want to delete this alert?')) {
                         try {
                             // Debug: verify imported `doc` is the function we expect
-                            try { console.debug('delete handler: typeof doc =', typeof doc); } catch(e) {}
+                            try { console.debug('delete handler: typeof fsDoc =', typeof fsDoc); } catch(e) {}
 
-                            const alertRef = typeof doc === 'function' ? doc(db, 'globalAlerts', docSnap.id) : null;
+                            const alertRef = typeof fsDoc === 'function' ? fsDoc(db, 'globalAlerts', docSnap.id) : null;
                             if (!alertRef) {
-                                console.error('Firestore `doc` helper is not a function. Cannot delete alert.', doc);
+                                console.error('Firestore `doc` helper is not a function. Cannot delete alert.', fsDoc);
                                 alert('Unable to delete alert: internal error. Check console for details.');
                                 return;
                             }
 
-                            await updateDoc(alertRef, { active: false });
-                            loadActiveAlerts();
+                            try {
+                                await deleteDoc(alertRef);
+                                loadActiveAlerts();
+                            } catch (delErr) {
+                                console.error('deleteDoc failed, falling back to update active=false', delErr);
+                                await updateDoc(alertRef, { active: false });
+                                loadActiveAlerts();
+                            }
                         } catch (err) {
                             console.error('Failed to delete alert:', err, 'doc value:', doc);
                             alert('Failed to delete alert. See console for details.');
@@ -144,7 +151,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     alertData.expiresAt = new Date(expiryDate).getTime();
                 }
                 
-                await addDoc(collection(db, 'globalAlerts'), alertData);
+                    await addDoc(collection(db, 'globalAlerts'), alertData);
                 alertForm.reset();
                 await loadActiveAlerts();
                 showStatus(submitBtn, 'Alert published successfully!');
@@ -165,10 +172,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const getAlertColorClass = (type) => {
         // Return classes that cover light and dark themes
         switch (type) {
-            case 'success': return 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900 dark:border-green-700 dark:text-green-200';
-            case 'error': return 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900 dark:border-red-700 dark:text-red-200';
-            case 'warning': return 'bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-900 dark:border-yellow-700 dark:text-yellow-200';
-            default: return 'bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900 dark:border-blue-700 dark:text-blue-200';
+            case 'success': return 'bg-green-50 border-green-200 text-green-800 dark:bg-green-800 dark:bg-opacity-90 dark:border-green-700 dark:text-green-100';
+            case 'error': return 'bg-red-50 border-red-200 text-red-800 dark:bg-red-800 dark:bg-opacity-90 dark:border-red-700 dark:text-red-100';
+            case 'warning': return 'bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-800 dark:bg-opacity-90 dark:border-yellow-700 dark:text-yellow-100';
+            default: return 'bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-800 dark:bg-opacity-90 dark:border-blue-700 dark:text-blue-100';
         }
     };
 
@@ -239,7 +246,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showLoader('Loading subjects...');
             try {
                     const subjectsSnapshot = await getDocs(collection(db, 'subjects'));
-                    const options = subjectsSnapshot.docs.map(doc => `<option value="${doc.id}">${doc.data().name}</option>`).join('');
+                    const options = subjectsSnapshot.docs.map(d => `<option value="${d.id}">${d.data().name}</option>`).join('');
                     const initialOption = '<option value="">Select a subject</option>';
                     if (subjectSelectForQuiz) subjectSelectForQuiz.innerHTML = initialOption + options;
                     if (subjectSelectForQuestion) subjectSelectForQuestion.innerHTML = initialOption + options;
@@ -258,24 +265,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     subjectsManageList.innerHTML = '<p class="text-gray-500">No subjects yet.</p>';
                     return;
                 }
-                const rows = snap.docs.map(doc => {
-                    const d = doc.data();
+                const rows = snap.docs.map(dSnap => {
+                    const d = dSnap.data();
                     return `
                             <div class="flex items-center gap-4 p-3 border-b">
                                 <div class="w-20 h-12 overflow-hidden rounded bg-gray-100"><img src="${d.smallCoverUrl||''}" class="w-full h-full object-cover" loading="lazy"></div>
                                 <div class="flex-1">
                                     <div class="font-semibold">${d.name}</div>
-                                    <div class="text-sm text-gray-500">id: ${doc.id}</div>
+                                    <div class="text-sm text-gray-500">id: ${dSnap.id}</div>
                                 </div>
                                 <div class="flex gap-2">
                                     <label class="btn-replace px-3 py-1 bg-yellow-500 text-white rounded cursor-pointer">Replace Small
-                                        <input type="file" accept="image/*" data-subject-id="${doc.id}" data-target="small" class="replace-input-small hidden">
+                                        <input type="file" accept="image/*" data-subject-id="${dSnap.id}" data-target="small" class="replace-input-small hidden">
                                     </label>
                                     <label class="btn-replace px-3 py-1 bg-green-600 text-white rounded cursor-pointer">Replace Large
-                                        <input type="file" accept="image/*" data-subject-id="${doc.id}" data-target="large" class="replace-input-large hidden">
+                                        <input type="file" accept="image/*" data-subject-id="${dSnap.id}" data-target="large" class="replace-input-large hidden">
                                     </label>
                                     <label class="btn-replace px-3 py-1 bg-blue-500 text-white rounded cursor-pointer">Replace Both
-                                        <input type="file" accept="image/*" data-subject-id="${doc.id}" class="replace-input-both hidden">
+                                        <input type="file" accept="image/*" data-subject-id="${dSnap.id}" class="replace-input-both hidden">
                                     </label>
                                 </div>
                             </div>
@@ -464,7 +471,7 @@ document.addEventListener('DOMContentLoaded', () => {
             showLoader('Loading quizzes...');
             quizSelectForQuestion.innerHTML = '<option value="">Loading quizzes...</option>';
             const quizzesSnapshot = await getDocs(collection(db, 'subjects', subjectId, 'quizzes'));
-            const quizOptions = quizzesSnapshot.docs.map(doc => `<option value="${doc.id}">${doc.data().name}</option>`).join('');
+            const quizOptions = quizzesSnapshot.docs.map(q => `<option value="${q.id}">${q.data().name}</option>`).join('');
             quizSelectForQuestion.innerHTML = '<option value="">Select a quiz</option>' + quizOptions;
             hideLoader();
             });
