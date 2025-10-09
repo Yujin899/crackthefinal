@@ -40,6 +40,53 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initThemeControls();
 
+    // Initialize Quran Player toggle (dynamic import + immediate init/cleanup)
+    const initQuranPlayerToggle = async () => {
+        const toggle = document.getElementById('quran-player-toggle');
+        if (!toggle) return;
+
+        // Load saved preference
+        const userPrefs = JSON.parse(localStorage.getItem('userPreferences') || '{}');
+        toggle.checked = !!userPrefs.quranPlayerEnabled;
+
+        // Helper to remove existing player elements
+        const cleanupPlayer = () => {
+            const existingBtn = document.getElementById('quran-player-button');
+            const existingPanel = document.getElementById('quran-player-panel');
+            if (existingBtn) existingBtn.remove();
+            if (existingPanel) existingPanel.remove();
+            // clear inited flag
+            try { delete window.__quranPlayerInited; } catch(e){}
+        };
+
+        // On change, persist preference and init/cleanup without full reload
+        toggle.addEventListener('change', async () => {
+            console.debug('[profile] quran-player-toggle changed ->', toggle.checked);
+            const prefs = JSON.parse(localStorage.getItem('userPreferences') || '{}');
+            prefs.quranPlayerEnabled = toggle.checked;
+            localStorage.setItem('userPreferences', JSON.stringify(prefs));
+
+            if (toggle.checked) {
+                // dynamic import and initialize
+                try {
+                    const mod = await import('./quranPlayer.js');
+                    const playerMod = (mod && (mod.default || mod));
+                    if (playerMod && typeof playerMod.init === 'function') {
+                        playerMod.init();
+                    } else if (window.QuranPlayer && typeof window.QuranPlayer.init === 'function') {
+                        window.QuranPlayer.init();
+                    }
+                } catch (e) {
+                    console.error('Failed to load Quran Player module:', e);
+                }
+            } else {
+                cleanupPlayer();
+            }
+        });
+    };
+
+    initQuranPlayerToggle();
+
     /**
      * Fetches user data from Firestore and updates all relevant UI elements.
      * @param {object} user - The Firebase Auth user object.
@@ -140,12 +187,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // delete avatar flow (overwrites existing public_id with tiny svg then clears fields)
                 const deleteAvatarBtn = document.getElementById('delete-avatar-btn');
-                if (userData.avatar) {
-                    deleteAvatarBtn.classList.remove('hidden');
-                } else {
-                    deleteAvatarBtn.classList.add('hidden');
-                }
-                deleteAvatarBtn.addEventListener('click', async () => {
+                if (deleteAvatarBtn) {
+                    if (userData.avatar) {
+                        deleteAvatarBtn.classList.remove('hidden');
+                    } else {
+                        deleteAvatarBtn.classList.add('hidden');
+                    }
+                    deleteAvatarBtn.addEventListener('click', async () => {
                     if (!confirm('Remove your photo and revert to initials?')) return;
                     try {
                         const publicIdToUse = userData.avatarPublicId || `avatar_${user.uid}`;
@@ -182,9 +230,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 });
 
+                }  // Close the deleteAvatarBtn check
+
                 // username edit
                 const editUsernameBtn = document.getElementById('edit-username-btn');
-                editUsernameBtn.addEventListener('click', async () => {
+                if (editUsernameBtn) {
+                    editUsernameBtn.addEventListener('click', async () => {
                     const newName = prompt('Enter new username', userData.username || '');
                     if (!newName || newName.trim().length < 2) return;
                     try {
@@ -196,10 +247,22 @@ document.addEventListener('DOMContentLoaded', () => {
                         alert('Could not update username.');
                     }
                 });
+                }  // Close the editUsernameBtn check
 
                 // IMPORTANT: Show admin button only if user is an admin
-                if (userData.isAdmin === true) {
-                    adminPanelButton.classList.remove('hidden');
+                const adminPanelButton = document.getElementById('admin-panel-button');
+                if (adminPanelButton) {
+                    if (userData.isAdmin === true) {
+                        // Make the admin button visible and interactive
+                        adminPanelButton.classList.remove('opacity-0', 'pointer-events-none');
+                        adminPanelButton.classList.add('opacity-100');
+                        adminPanelButton.setAttribute('data-visible', 'true');
+                    } else {
+                        // Ensure hidden for non-admins
+                        adminPanelButton.classList.add('opacity-0', 'pointer-events-none');
+                        adminPanelButton.classList.remove('opacity-100');
+                        adminPanelButton.removeAttribute('data-visible');
+                    }
                 }
 
                 // Notifications feature temporarily removed

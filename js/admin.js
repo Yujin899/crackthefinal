@@ -1,7 +1,7 @@
 // admin.js
 import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
-import { doc, getDoc, collection, getDocs, addDoc, writeBatch, updateDoc, collectionGroup, where } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+import { doc, getDoc, collection, getDocs, addDoc, writeBatch, updateDoc, collectionGroup, where, query } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 import { showLoader, hideLoader } from './loader.js';
 
 // --- Cloudinary Configuration ---
@@ -21,6 +21,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (userDoc.exists() && userDoc.data().isAdmin === true) {
                 console.log("Welcome Admin! Initializing page.");
                 initializeApp();
+                initializeAlertSystem();
                 } else {
                 console.log("Access Denied: User is not an admin. Redirecting...");
                 window.location.href = '/index.html';
@@ -36,6 +37,119 @@ document.addEventListener('DOMContentLoaded', () => {
         element.textContent = message;
         element.style.color = isError ? '#ef4444' : '#16a34a';
         setTimeout(() => element.textContent = '', 4000);
+    };
+
+    // --- Alert Management Functions ---
+    const initializeAlertSystem = async () => {
+        const alertForm = document.getElementById('alert-form');
+        const activeAlertsList = document.getElementById('active-alerts');
+
+        // If UI is not present, skip initializing alerts gracefully
+        if (!alertForm || !activeAlertsList) {
+            console.warn('Alert UI not found on this page. Skipping alert system initialization.');
+            return;
+        }
+
+        // Load existing alerts
+        const loadActiveAlerts = async () => {
+            const alertsSnapshot = await getDocs(
+                query(collection(db, 'globalAlerts'), where('active', '==', true))
+            );
+
+            activeAlertsList.innerHTML = '';
+            alertsSnapshot.forEach(doc => {
+                const alert = doc.data();
+                const alertEl = document.createElement('div');
+                alertEl.className = 'p-4 rounded-lg border ' + getAlertColorClass(alert.type);
+                
+                const seenCount = alert.seenBy ? Object.keys(alert.seenBy).length : 0;
+                
+                alertEl.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h4 class="font-semibold">${alert.title}</h4>
+                            <p class="text-sm mt-1">${alert.message}</p>
+                            <div class="text-xs mt-2 text-gray-600">
+                                Published: ${new Date(alert.createdAt).toLocaleString()}
+                                ${alert.expiresAt ? `<br>Expires: ${new Date(alert.expiresAt).toLocaleString()}` : ''}
+                                <br>Seen by ${seenCount} users
+                            </div>
+                        </div>
+                        <button class="delete-alert text-red-500 hover:text-red-700" data-alert-id="${doc.id}">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                            </svg>
+                        </button>
+                    </div>
+                `;
+                
+                // Add delete handler
+                alertEl.querySelector('.delete-alert').addEventListener('click', async () => {
+                    if (confirm('Are you sure you want to delete this alert?')) {
+                        await updateDoc(doc(db, 'globalAlerts', doc.id), { active: false });
+                        loadActiveAlerts();
+                    }
+                });
+                
+                activeAlertsList.appendChild(alertEl);
+            });
+        };
+
+        // Handle form submission
+        alertForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const submitBtn = alertForm.querySelector('button[type="submit"]');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = spinnerSVG;
+            
+            try {
+                const alertData = {
+                    title: alertForm.querySelector('#alert-title').value,
+                    message: alertForm.querySelector('#alert-message').value,
+                    type: alertForm.querySelector('#alert-type').value,
+                    createdAt: Date.now(),
+                    active: true,
+                    seenBy: {}
+                };
+                
+                let expiryDate = alertForm.querySelector('#alert-expiry').value;
+                if (!expiryDate) {
+                    // Try fallback date/time fields
+                    const datePart = document.getElementById('alert-expiry-date')?.value || '';
+                    const timePart = document.getElementById('alert-expiry-time')?.value || '';
+                    if (datePart) {
+                        expiryDate = timePart ? `${datePart}T${timePart}` : `${datePart}T00:00`;
+                    }
+                }
+                if (expiryDate) {
+                    alertData.expiresAt = new Date(expiryDate).getTime();
+                }
+                
+                await addDoc(collection(db, 'globalAlerts'), alertData);
+                alertForm.reset();
+                await loadActiveAlerts();
+                showStatus(submitBtn, 'Alert published successfully!');
+                
+            } catch (error) {
+                console.error('Error publishing alert:', error);
+                showStatus(submitBtn, 'Failed to publish alert', true);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Publish Alert';
+            }
+        });
+
+        // Load initial alerts
+        await loadActiveAlerts();
+    };
+
+    const getAlertColorClass = (type) => {
+        switch (type) {
+            case 'success': return 'bg-green-50 border-green-200';
+            case 'error': return 'bg-red-50 border-red-200';
+            case 'warning': return 'bg-yellow-50 border-yellow-200';
+            default: return 'bg-blue-50 border-blue-200';
+        }
     };
 
     const uploadImage = (file, onProgress, opts = {}) => {
@@ -104,18 +218,18 @@ document.addEventListener('DOMContentLoaded', () => {
         const populateSubjectsDropdowns = async () => {
             showLoader('Loading subjects...');
             try {
-                const subjectsSnapshot = await getDocs(collection(db, 'subjects'));
-                const options = subjectsSnapshot.docs.map(doc => `<option value="${doc.id}">${doc.data().name}</option>`).join('');
-                const initialOption = '<option value="">Select a subject</option>';
-                subjectSelectForQuiz.innerHTML = initialOption + options;
-                subjectSelectForQuestion.innerHTML = initialOption + options;
-            } catch (error) { console.error("Could not populate subjects:", error); }
+                    const subjectsSnapshot = await getDocs(collection(db, 'subjects'));
+                    const options = subjectsSnapshot.docs.map(doc => `<option value="${doc.id}">${doc.data().name}</option>`).join('');
+                    const initialOption = '<option value="">Select a subject</option>';
+                    if (subjectSelectForQuiz) subjectSelectForQuiz.innerHTML = initialOption + options;
+                    if (subjectSelectForQuestion) subjectSelectForQuestion.innerHTML = initialOption + options;
+                } catch (error) { console.error("Could not populate subjects:", error); }
             finally { hideLoader(); }
         };
         await populateSubjectsDropdowns();
 
-        // --- Subjects management UI ---
-        const subjectsManageList = document.getElementById('subjects-manage-list');
+    // --- Subjects management UI ---
+    const subjectsManageList = document.getElementById('subjects-manage-list');
         const populateSubjectsManage = async () => {
             subjectsManageList.innerHTML = '<p class="text-gray-500">Loading subjects...</p>';
             try {
@@ -226,18 +340,23 @@ document.addEventListener('DOMContentLoaded', () => {
                 subjectsManageList.innerHTML = '<p class="text-red-500">Error loading subjects.</p>';
             }
         };
-        await populateSubjectsManage();
+        if (subjectsManageList) {
+            await populateSubjectsManage();
+        } else {
+            console.warn('Subjects manage list UI not present; skipping populateSubjectsManage.');
+        }
 
         // --- Event Listeners ---
         
         // 1. Add Subject Form
         const addSubjectForm = document.getElementById('add-subject-form');
-        const addSubjectBtn = document.getElementById('add-subject-btn');
-        const addSubjectBtnText = addSubjectBtn.querySelector('span');
-        const addSubjectProgressBar = document.getElementById('add-subject-progress');
-        const originalBtnText = addSubjectBtnText.textContent;
+        if (addSubjectForm) {
+            const addSubjectBtn = document.getElementById('add-subject-btn');
+            const addSubjectBtnText = addSubjectBtn ? addSubjectBtn.querySelector('span') : null;
+            const addSubjectProgressBar = document.getElementById('add-subject-progress');
+            const originalBtnText = addSubjectBtnText ? addSubjectBtnText.textContent : '';
 
-        addSubjectForm.addEventListener('submit', async (e) => {
+            addSubjectForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const statusEl = document.getElementById('subject-status');
             
@@ -284,13 +403,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 addSubjectProgressBar.style.width = '0%';
                 hideLoader();
             }
-        });
+            });
+        }
 
         // 2. Add Quiz Form
         const addQuizForm = document.getElementById('add-quiz-form');
-        const addQuizBtn = addQuizForm.querySelector('button');
-        const addQuizBtnText = addQuizBtn.textContent;
-        addQuizForm.addEventListener('submit', async (e) => {
+        if (addQuizForm) {
+            const addQuizBtn = addQuizForm.querySelector('button');
+            const addQuizBtnText = addQuizBtn ? addQuizBtn.textContent : '';
+            addQuizForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             showLoadingState(addQuizBtn);
             const statusEl = document.getElementById('quiz-status');
@@ -311,10 +432,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 hideLoadingState(addQuizBtn, addQuizBtnText);
                 hideLoader();
             }
-        });
+            });
+        }
 
         // 3. Dynamic Quiz Loading
-        subjectSelectForQuestion.addEventListener('change', async (e) => {
+        if (subjectSelectForQuestion) {
+            subjectSelectForQuestion.addEventListener('change', async (e) => {
             const subjectId = e.target.value;
             quizSelectForQuestion.innerHTML = '<option value="">Select a subject first</option>';
             if (!subjectId) return;
@@ -324,13 +447,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const quizOptions = quizzesSnapshot.docs.map(doc => `<option value="${doc.id}">${doc.data().name}</option>`).join('');
             quizSelectForQuestion.innerHTML = '<option value="">Select a quiz</option>' + quizOptions;
             hideLoader();
-        });
+            });
+        }
 
         // 4. Add Questions via JSON
         const addQuestionForm = document.getElementById('add-question-form');
-        const addQuestionBtn = addQuestionForm.querySelector('button');
-        const addQuestionBtnText = addQuestionBtn.textContent;
-        addQuestionForm.addEventListener('submit', async (e) => {
+        if (addQuestionForm) {
+            const addQuestionBtn = addQuestionForm.querySelector('button');
+            const addQuestionBtnText = addQuestionBtn ? addQuestionBtn.textContent : '';
+            addQuestionForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             showLoadingState(addQuestionBtn);
             const statusEl = document.getElementById('question-status');
@@ -381,7 +506,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 hideLoadingState(addQuestionBtn, addQuestionBtnText);
                 hideLoader();
             }
-        });
+            });
+        }
         hideLoader();
     };
 

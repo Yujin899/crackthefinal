@@ -7,6 +7,7 @@
     <link rel="icon" type="image/png" href="./imgs/logo.png">
     <link href="./dist/output.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script type="module" src="./js/quranPlayer.js"></script>
     <style>
         body { font-family: 'Poppins', sans-serif; background-color: #f1f5f9; }
         .admin-card { background-color: white; border-radius: 0.75rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
@@ -41,6 +42,51 @@
         <div class="flex items-center justify-between mb-8">
             <h1 class="text-3xl font-bold text-slate-800">Admin Panel</h1>
             <a href="/index.html" class="text-blue-600 hover:underline">Go to Main Site</a>
+        </div>
+
+        <!-- Global Alerts Management -->
+        <div class="admin-card p-6 mb-8">
+            <h2 class="text-2xl font-bold mb-6 border-b pb-4">Manage Global Alerts</h2>
+            <form id="alert-form" class="space-y-4">
+                <div>
+                    <label for="alert-title" class="form-label block mb-2">Alert Title</label>
+                    <input type="text" id="alert-title" class="form-input" placeholder="e.g., New Feature Announcement" required>
+                </div>
+                <div>
+                    <label for="alert-message" class="form-label block mb-2">Alert Message</label>
+                    <textarea id="alert-message" class="form-input h-24" placeholder="Describe the update or announcement..." required></textarea>
+                </div>
+                <div>
+                    <label for="alert-type" class="form-label block mb-2">Alert Type</label>
+                    <select id="alert-type" class="form-input" required>
+                        <option value="info">Information (Blue)</option>
+                        <option value="success">Success (Green)</option>
+                        <option value="warning">Warning (Yellow)</option>
+                        <option value="error">Error (Red)</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="alert-expiry" class="form-label block mb-2">Expires After (Optional)</label>
+                    <input type="datetime-local" id="alert-expiry" class="form-input">
+                    <!-- Fallback for browsers that don't support datetime-local -->
+                    <div id="alert-expiry-fallback" class="hidden">
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="date" id="alert-expiry-date" class="form-input" />
+                            <input type="time" id="alert-expiry-time" class="form-input" />
+                        </div>
+                        <p class="text-sm text-gray-500 mt-1">Use the date and time fields if your browser doesn't show a datetime picker.</p>
+                    </div>
+                </div>
+                <button type="submit" class="submit-btn">Publish Alert</button>
+            </form>
+
+            <!-- Active Alerts List -->
+            <div class="mt-8">
+                <h3 class="text-xl font-semibold mb-4">Active Alerts</h3>
+                <div id="active-alerts" class="space-y-4">
+                    <!-- Active alerts will be listed here -->
+                </div>
+            </div>
         </div>
 
         <div class="admin-card p-6 mb-8">
@@ -81,7 +127,26 @@
                 </div>
                 <button type="submit" class="submit-btn">Add Quiz</button>
                 <p id="quiz-status" class="text-center text-green-600 mt-2 h-4"></p>
-                <!-- Notifications feature removed -->
+            </form>
+        </div>
+
+        <div class="admin-card p-6 mb-8">
+            <h2 class="text-2xl font-bold mb-6 border-b pb-4">3. Add Questions via JSON</h2>
+            <form id="add-question-form" class="space-y-4">
+                <div>
+                    <label for="subject-select-for-question" class="form-label block mb-2">Select Subject</label>
+                    <select id="subject-select-for-question" class="form-input auth-input" required>
+                        <option value="">Select a subject</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="quiz-select-for-question" class="form-label block mb-2">Select Quiz</label>
+                    <select id="quiz-select-for-question" class="form-input auth-input" required>
+                        <option value="">Select a quiz</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="questions-json-file" class="form-label block mb-2">Questions JSON File</label>
                     <input type="file" id="questions-json-file" class="form-input auth-input" accept=".json" required>
                 </div>
                 <button type="submit" class="submit-btn">Upload Questions</button>
@@ -99,5 +164,17 @@
         <!-- Notifications temporarily disabled -->
     </div>
     <script type="module" src="./js/admin.js"></script>
+    <script>
+        // Show fallback date/time inputs if datetime-local is unsupported
+        (function(){
+            const input = document.createElement('input');
+            input.setAttribute('type', 'datetime-local');
+            const supports = input.type === 'datetime-local';
+            if (!supports) {
+                const fallback = document.getElementById('alert-expiry-fallback');
+                if (fallback) fallback.classList.remove('hidden');
+            }
+        })();
+    </script>
 </body>
 </html>

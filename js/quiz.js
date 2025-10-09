@@ -35,8 +35,57 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let currentUser = null;
 
+  async function checkPreviousAttempt() {
+    if (!currentUser) return null;
+    
+    try {
+      const attemptsQuery = query(
+        collection(db, 'quizAttempts'),
+        where('userId', '==', currentUser.uid),
+        where('quizId', '==', quizId),
+        where('subjectId', '==', subjectId),
+        limit(1)
+      );
+      
+      const attemptDocs = await getDocs(attemptsQuery);
+      if (!attemptDocs.empty) {
+        const attempt = attemptDocs.docs[0].data();
+        return attempt;
+      }
+    } catch (error) {
+      console.warn('Error checking previous attempts:', error);
+    }
+    return null;
+  }
+
   async function loadQuestions() {
     showLoader('Loading quiz...');
+
+    // Check for previous attempts
+    const previousAttempt = await checkPreviousAttempt();
+    if (previousAttempt) {
+      // Add a notice at the top of the quiz
+      const noticeEl = document.createElement('div');
+      noticeEl.className = 'bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-6 rounded';
+      const attemptDate = new Date(previousAttempt.timestamp).toLocaleDateString();
+      const score = previousAttempt.score || 'N/A';
+      noticeEl.innerHTML = `
+        <div class="flex items-start">
+          <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <div class="ml-3">
+            <p class="text-sm">You've previously taken this quiz on ${attemptDate}.</p>
+            <p class="text-sm mt-1">Your score was: ${score}%</p>
+            <p class="text-sm mt-1">You can take the quiz again to improve your score.</p>
+          </div>
+        </div>
+      `;
+      document.querySelector('main').insertBefore(noticeEl, document.querySelector('main').firstChild);
+    }
+
     const q = query(collection(db, 'subjects', subjectId, 'quizzes', quizId, 'questions'), orderBy('createdAt'));
     const snapshot = await getDocs(q);
     questions = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
@@ -81,11 +130,22 @@ document.addEventListener('DOMContentLoaded', () => {
   async function persistAttempt(resultSummary) {
     if (!currentUser) return null;
     try {
+      // Save the quiz attempt in the global quizAttempts collection
+      const attemptRef = await addDoc(collection(db, 'quizAttempts'), {
+        userId: currentUser.uid,
+        quizId,
+        subjectId,
+        timestamp: serverTimestamp(),
+        score: resultSummary.percent,
+        totalPoints: resultSummary.totalPoints,
+        maxPoints: resultSummary.maxTotal
+      });
+
       // compute advanced points (streak, multiplier, bonuses)
-  // Determine if this is the first attempt for this quiz by this user. If so, we'll apply points.
-  const prevAttemptsQuery = query(collection(db, 'users', currentUser.uid, 'attempts'), where('quizId', '==', quizId), limit(1));
-  const prevAttemptsSnap = await getDocs(prevAttemptsQuery);
-  const isFirstAttempt = prevAttemptsSnap.empty;
+      // Determine if this is the first attempt for this quiz by this user. If so, we'll apply points.
+      const prevAttemptsQuery = query(collection(db, 'users', currentUser.uid, 'attempts'), where('quizId', '==', quizId), limit(1));
+      const prevAttemptsSnap = await getDocs(prevAttemptsQuery);
+      const isFirstAttempt = prevAttemptsSnap.empty;
 
   // Pass the full perQuestion objects so the points engine can access options, text and indexes
   const adv = calculateAdvancedPoints(resultSummary.perQuestion);
