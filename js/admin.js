@@ -59,29 +59,30 @@ document.addEventListener('DOMContentLoaded', () => {
             activeAlertsList.innerHTML = '';
             alertsSnapshot.forEach(doc => {
                 const alert = doc.data();
-                const alertEl = document.createElement('div');
-                alertEl.className = 'p-4 rounded-lg border ' + getAlertColorClass(alert.type);
-                
-                const seenCount = alert.seenBy ? Object.keys(alert.seenBy).length : 0;
-                
-                alertEl.innerHTML = `
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h4 class="font-semibold">${alert.title}</h4>
-                            <p class="text-sm mt-1">${alert.message}</p>
-                            <div class="text-xs mt-2 text-gray-600">
-                                Published: ${new Date(alert.createdAt).toLocaleString()}
-                                ${alert.expiresAt ? `<br>Expires: ${new Date(alert.expiresAt).toLocaleString()}` : ''}
-                                <br>Seen by ${seenCount} users
+                        const alertEl = document.createElement('div');
+                        const colorCls = getAlertColorClass(alert.type);
+                        alertEl.className = `p-4 rounded-lg border ${colorCls}`;
+
+                        const seenCount = alert.seenBy ? Object.keys(alert.seenBy).length : 0;
+
+                        alertEl.innerHTML = `
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h4 class="font-semibold text-gray-900 dark:text-gray-100">${alert.title}</h4>
+                                    <p class="text-sm mt-1 text-gray-700 dark:text-gray-300">${alert.message}</p>
+                                    <div class="text-xs mt-2 text-gray-600 dark:text-gray-400">
+                                        Published: ${new Date(alert.createdAt).toLocaleString()}
+                                        ${alert.expiresAt ? `<br>Expires: ${new Date(alert.expiresAt).toLocaleString()}` : ''}
+                                        <br>Seen by ${seenCount} users
+                                    </div>
+                                </div>
+                                <button class="delete-alert text-red-600 hover:text-red-400 dark:text-red-300" data-alert-id="${doc.id}" aria-label="Delete alert">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
                             </div>
-                        </div>
-                        <button class="delete-alert text-red-500 hover:text-red-700" data-alert-id="${doc.id}">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
-                            </svg>
-                        </button>
-                    </div>
-                `;
+                        `;
                 
                 // Add delete handler
                 alertEl.querySelector('.delete-alert').addEventListener('click', async () => {
@@ -144,11 +145,12 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     const getAlertColorClass = (type) => {
+        // Return classes that cover light and dark themes
         switch (type) {
-            case 'success': return 'bg-green-50 border-green-200';
-            case 'error': return 'bg-red-50 border-red-200';
-            case 'warning': return 'bg-yellow-50 border-yellow-200';
-            default: return 'bg-blue-50 border-blue-200';
+            case 'success': return 'bg-green-50 border-green-200 text-green-800 dark:bg-green-900 dark:border-green-700 dark:text-green-200';
+            case 'error': return 'bg-red-50 border-red-200 text-red-800 dark:bg-red-900 dark:border-red-700 dark:text-red-200';
+            case 'warning': return 'bg-yellow-50 border-yellow-200 text-yellow-800 dark:bg-yellow-900 dark:border-yellow-700 dark:text-yellow-200';
+            default: return 'bg-blue-50 border-blue-200 text-blue-800 dark:bg-blue-900 dark:border-blue-700 dark:text-blue-200';
         }
     };
 
