@@ -7,6 +7,9 @@ class AlertSystem {
         this.alertsContainer = null;
         this.activeAlerts = new Map();
         this.currentUser = null;
+        this.modalOpen = false;
+        this.queue = [];
+        this.listening = false;
     }
 
     async initialize() {
@@ -18,15 +21,10 @@ class AlertSystem {
             document.body.appendChild(this.alertsContainer);
         }
 
-        // Listen for auth state changes
-        auth.onAuthStateChanged(user => {
-            this.currentUser = user;
-            if (user) {
-                this.startListeningToAlerts();
-            } else {
-                this.stopListeningToAlerts();
-            }
-        });
+        // Track auth changes but start listening for alerts for all users
+        auth.onAuthStateChanged(user => { this.currentUser = user; });
+        // Start listening once
+        if (!this.listening) this.startListeningToAlerts();
     }
 
     startListeningToAlerts() {
@@ -36,6 +34,7 @@ class AlertSystem {
             where('active', '==', true)
         );
 
+        this.listening = true;
         this.unsubscribe = onSnapshot(alertsQuery, snapshot => {
             snapshot.docChanges().forEach(change => {
                 const alert = change.doc.data();
@@ -44,18 +43,21 @@ class AlertSystem {
                 if (change.type === 'removed' || !alert.active) {
                     this.removeAlert(alertId);
                 } else if (change.type === 'added' || change.type === 'modified') {
-                    // Check if alert has expired
-                    if (alert.expiresAt && alert.expiresAt < Date.now()) {
-                        this.removeAlert(alertId);
-                        return;
-                    }
+                    // check expiration (support Firestore Timestamp or number)
+                    const expiresAt = alert.expiresAt && alert.expiresAt.seconds ? alert.expiresAt.seconds * 1000 : alert.expiresAt;
+                    if (expiresAt && expiresAt < Date.now()) { this.removeAlert(alertId); return; }
 
-                    // Check if user has already seen this alert
-                    if (alert.seenBy && alert.seenBy[this.currentUser.uid]) {
-                        return;
-                    }
+                    // Check if user or visitor has already seen this alert
+                    const seenByUser = this.currentUser && alert.seenBy && alert.seenBy[this.currentUser.uid];
+                    const seenByVisitor = !!localStorage.getItem(`globalAlertSeen_${alertId}`);
+                    if (seenByUser || seenByVisitor) return;
 
-                    this.showAlert(alertId, alert);
+                    // Queue or show immediately
+                    if (this.modalOpen) {
+                        this.queue.push({ id: alertId, data: alert });
+                    } else {
+                        this.showAlert(alertId, alert);
+                    }
                 }
             });
         });
@@ -81,6 +83,14 @@ class AlertSystem {
     async showAlert(alertId, alertData) {
         if (this.activeAlerts.has(alertId)) return;
 
+        // If on index page, show a blocking modal in front of all content
+        const isIndex = ['/','/index.html','/index',''].includes(window.location.pathname.replace(/\/+$/,''));
+        if (isIndex) {
+            this._showModalAlert(alertId, alertData);
+            return;
+        }
+
+        // Fallback: small toast in the corner (existing behavior)
         const alertEl = document.createElement('div');
         alertEl.className = `relative p-4 rounded-lg border ${this.getAlertColorClass(alertData.type)} shadow-lg`;
         alertEl.innerHTML = `
@@ -107,6 +117,58 @@ class AlertSystem {
         this.activeAlerts.set(alertId, alertEl);
     }
 
+    _showModalAlert(alertId, alertData) {
+        // build modal/backdrop
+        this.modalOpen = true;
+        const backdrop = document.createElement('div');
+        backdrop.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center';
+        backdrop.id = `global-alert-backdrop-${alertId}`;
+
+        const dialog = document.createElement('div');
+        dialog.className = 'bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-lg w-full m-4 p-6 z-60';
+        dialog.setAttribute('role','dialog');
+        dialog.setAttribute('aria-modal','true');
+        dialog.innerHTML = `
+            <div class="flex justify-between items-start">
+                <div>
+                    <h3 class="text-lg font-semibold">${alertData.title || 'Announcement'}</h3>
+                    <p class="mt-2 text-sm text-gray-700 dark:text-gray-300">${alertData.message || ''}</p>
+                </div>
+            </div>
+            <div class="mt-4 flex justify-end gap-3">
+                <button id="global-alert-ok" class="px-4 py-2 bg-blue-600 text-white rounded">OK</button>
+                <button id="global-alert-close" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded">Close</button>
+            </div>
+        `;
+
+        backdrop.appendChild(dialog);
+        document.body.appendChild(backdrop);
+
+        // trap focus to dialog (basic)
+        const okBtn = dialog.querySelector('#global-alert-ok');
+        const closeBtn = dialog.querySelector('#global-alert-close');
+        setTimeout(()=>{ try { okBtn.focus(); } catch(e){} }, 50);
+
+        const closeHandler = async () => {
+            try { backdrop.remove(); } catch(e){}
+            this.modalOpen = false;
+            // mark as seen for this visitor and (if logged-in) user
+            await this.markAlertAsSeen(alertId);
+            // show next queued alert if any
+            if (this.queue.length) {
+                const next = this.queue.shift();
+                setTimeout(()=> this.showAlert(next.id, next.data), 200);
+            }
+        };
+
+        okBtn.addEventListener('click', closeHandler);
+        closeBtn.addEventListener('click', closeHandler);
+        backdrop.addEventListener('click', (e) => { if (e.target === backdrop) closeHandler(); });
+        // Esc key closes
+        const onKey = (e) => { if (e.key === 'Escape') { closeHandler(); window.removeEventListener('keydown', onKey); } };
+        window.addEventListener('keydown', onKey);
+    }
+
     removeAlert(alertId) {
         const alertEl = this.activeAlerts.get(alertId);
         if (alertEl) {
@@ -119,13 +181,20 @@ class AlertSystem {
     }
 
     async markAlertAsSeen(alertId) {
-        if (!this.currentUser) return;
-
         try {
-            const alertRef = doc(db, 'globalAlerts', alertId);
-            await updateDoc(alertRef, {
-                [`seenBy.${this.currentUser.uid}`]: Date.now()
-            });
+            // Always persist for guest in localStorage so they won't see repeated modals
+            try { localStorage.setItem(`globalAlertSeen_${alertId}`, String(Date.now())); } catch(e){}
+
+            if (this.currentUser) {
+                const alertRef = doc(db, 'globalAlerts', alertId);
+                try {
+                    await updateDoc(alertRef, {
+                        [`seenBy.${this.currentUser.uid}`]: Date.now()
+                    });
+                } catch (error) {
+                    console.error('Error marking alert as seen in Firestore:', error);
+                }
+            }
         } catch (error) {
             console.error('Error marking alert as seen:', error);
         }
