@@ -39,14 +39,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!currentUser) return null;
     
     try {
-      // Look up previous attempts from the user's attempts subcollection
       const attemptsQuery = query(
-        collection(db, 'users', currentUser.uid, 'attempts'),
+        collection(db, 'quizAttempts'),
+        where('userId', '==', currentUser.uid),
         where('quizId', '==', quizId),
         where('subjectId', '==', subjectId),
         limit(1)
       );
-
+      
       const attemptDocs = await getDocs(attemptsQuery);
       if (!attemptDocs.empty) {
         const attempt = attemptDocs.docs[0].data();
@@ -130,6 +130,17 @@ document.addEventListener('DOMContentLoaded', () => {
   async function persistAttempt(resultSummary) {
     if (!currentUser) return null;
     try {
+      // Save the quiz attempt in the global quizAttempts collection
+      const attemptRef = await addDoc(collection(db, 'quizAttempts'), {
+        userId: currentUser.uid,
+        quizId,
+        subjectId,
+        timestamp: serverTimestamp(),
+        score: resultSummary.percent,
+        totalPoints: resultSummary.totalPoints,
+        maxPoints: resultSummary.maxTotal
+      });
+
       // compute advanced points (streak, multiplier, bonuses)
       // Determine if this is the first attempt for this quiz by this user. If so, we'll apply points.
       const prevAttemptsQuery = query(collection(db, 'users', currentUser.uid, 'attempts'), where('quizId', '==', quizId), limit(1));
