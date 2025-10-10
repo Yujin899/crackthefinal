@@ -521,7 +521,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         createdAt: new Date()
                     };
 
-                    batch.set(doc(questionCollectionRef), normalized);
+                    batch.set(fsDoc(questionCollectionRef), normalized);
                 });
                 await batch.commit();
                 showStatus(statusEl, `Successfully uploaded ${questions.length} questions!`);
