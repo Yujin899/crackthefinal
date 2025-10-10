@@ -37,16 +37,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function checkPreviousAttempt() {
     if (!currentUser) return null;
-    
     try {
+      // Read the most recent attempt for this user/quiz from the user's attempts subcollection
       const attemptsQuery = query(
-        collection(db, 'quizAttempts'),
-        where('userId', '==', currentUser.uid),
+        collection(db, 'users', currentUser.uid, 'attempts'),
+        orderBy('createdAt', 'desc'),
         where('quizId', '==', quizId),
         where('subjectId', '==', subjectId),
         limit(1)
       );
-      
+
       const attemptDocs = await getDocs(attemptsQuery);
       if (!attemptDocs.empty) {
         const attempt = attemptDocs.docs[0].data();
@@ -67,8 +67,13 @@ document.addEventListener('DOMContentLoaded', () => {
       // Add a notice at the top of the quiz (dark-mode friendly)
       const noticeEl = document.createElement('div');
       noticeEl.className = 'bg-blue-50 border-l-4 border-blue-500 text-blue-700 p-4 mb-6 rounded dark:bg-blue-900 dark:bg-opacity-80 dark:border-blue-400 dark:text-blue-100';
-      const attemptDate = new Date(previousAttempt.timestamp).toLocaleDateString();
-      const score = previousAttempt.score || 'N/A';
+      // tolerate either a Firestore Timestamp in `createdAt` or legacy `timestamp` or a raw number
+      const ts = previousAttempt.createdAt || previousAttempt.timestamp;
+      const attemptDate = ts && typeof ts.toDate === 'function'
+        ? ts.toDate().toLocaleDateString()
+        : new Date(ts || Date.now()).toLocaleDateString();
+  // attempt objects previously used `score` but the current format stores `percent`.
+  const score = (typeof previousAttempt.percent === 'number' ? previousAttempt.percent : previousAttempt.score) || 'N/A';
       noticeEl.innerHTML = `
         <div class="flex items-start">
           <div class="flex-shrink-0">
@@ -130,17 +135,6 @@ document.addEventListener('DOMContentLoaded', () => {
   async function persistAttempt(resultSummary) {
     if (!currentUser) return null;
     try {
-      // Save the quiz attempt in the global quizAttempts collection
-      const attemptRef = await addDoc(collection(db, 'quizAttempts'), {
-        userId: currentUser.uid,
-        quizId,
-        subjectId,
-        timestamp: serverTimestamp(),
-        score: resultSummary.percent,
-        totalPoints: resultSummary.totalPoints,
-        maxPoints: resultSummary.maxTotal
-      });
-
       // compute advanced points (streak, multiplier, bonuses)
       // Determine if this is the first attempt for this quiz by this user. If so, we'll apply points.
       const prevAttemptsQuery = query(collection(db, 'users', currentUser.uid, 'attempts'), where('quizId', '==', quizId), limit(1));
