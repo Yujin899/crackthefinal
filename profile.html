@@ -38,64 +38,28 @@
             <!-- Profile card (left) -->
             <section class="bg-white rounded-2xl shadow-lg overflow-hidden">
                 <!-- Header with gradient -->
-                <div class="bg-gradient-to-r from-blue-500 to-indigo-600 p-6 text-white">
+                <div class="bg-white dark:bg-gradient-to-r dark:from-blue-500 dark:to-indigo-600 p-6">
                     <div class="relative mb-4 flex justify-center">
                         <div class="relative inline-block">
-                            <a href="/index.html" id="profile-avatar" class="w-24 h-24 bg-white/10 rounded-full flex items-center justify-center overflow-hidden relative z-0 border-4 border-white" title="Profile Photo">
+                            <a href="/index.html" id="profile-avatar" class="w-24 h-24 bg-gray-50 dark:bg-white/10 rounded-full flex items-center justify-center overflow-hidden relative z-0 border-4 border-white" title="Profile Photo">
                             </a>
-                            <button id="change-avatar-btn" title="Change avatar" class="absolute bottom-0 right-0 bg-white p-2 rounded-full shadow-lg z-10 -translate-y-1/4 translate-x-1/4 hover:bg-gray-50 transition-colors">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536M9 11l6-6 3 3-6 6H9v-3z"/></svg>
-                            </button>
                         </div>
-                        <input id="avatar-file-input" type="file" accept="image/*" class="hidden">
                     </div>
 
                     <div class="text-center">
                         <div class="flex items-center justify-center gap-2">
-                            <h1 id="profile-username" class="text-2xl font-bold">Loading...</h1>
-                            <button id="edit-username-btn" title="Edit username" class="p-1 rounded-md text-white/80 hover:text-white hover:bg-white/10 transition-colors">
+                            <h1 id="profile-username" class="text-2xl font-bold text-gray-900 dark:text-white">Loading...</h1>
+                            <button id="edit-username-btn" title="Edit username" class="p-1 rounded-md text-gray-600 hover:text-gray-900 dark:text-white/90 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 010 2.828l-9.193 9.193a1 1 0 01-.464.263l-4 1a1 1 0 01-1.213-1.213l1-4a1 1 0 01.263-.464L14.586 2.586a2 2 0 012.828 0z"/></svg>
                             </button>
                         </div>
-                        <p id="profile-email" class="text-blue-100 mt-1">...</p>
+                        <p id="profile-email" class="text-gray-600 dark:text-white dark:text-opacity-90 mt-1">...</p>
                     </div>
                 </div>
 
                 <!-- Settings Section -->
                 <div class="p-6 space-y-6">
-                    <!-- Profile Upload Progress -->
-                    <div id="avatar-upload-progress" class="hidden w-full">
-                        <div class="bg-blue-50 p-4 rounded-xl mb-4">
-                            <div class="h-2 bg-white/50 rounded-full overflow-hidden">
-                                <div id="avatar-upload-progress-bar" class="h-2 bg-blue-500 transition-all duration-300 w-0"></div>
-                            </div>
-                            <div id="avatar-upload-progress-text" class="text-sm text-blue-700 mt-2 text-center">Uploading... 0%</div>
-                        </div>
-                    </div>
 
-                    <!-- Quran Player Toggle -->
-                    <div class="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-100 mb-4">
-                        <div class="flex items-center justify-between">
-                            <div class="space-y-1">
-                                <label for="quran-player-toggle" class="font-medium text-blue-900 flex items-center gap-2">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-                                    </svg>
-                                    Quran Player
-                                </label>
-                                <p class="text-sm text-blue-600">Enable floating audio player across all pages</p>
-                            </div>
-                            <div>
-                                <label class="relative inline-flex items-center cursor-pointer">
-                                    <input type="checkbox" id="quran-player-toggle" class="sr-only peer">
-                                    <span class="w-14 h-7 bg-gray-200 rounded-full transition-colors duration-200 ease-in-out peer-checked:bg-gradient-to-r peer-checked:from-blue-500 peer-checked:to-indigo-600"></span>
-                                    <span class="absolute left-0 top-0 w-7 h-7 bg-white rounded-full shadow transform transition-transform duration-200 peer-checked:translate-x-7"></span>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Delete avatar button moved to header with avatar -->
-                    <input id="avatar-file-input" type="file" accept="image/*" class="hidden">
 
                     <!-- Theme selector -->
                     <div class="space-y-2">
@@ -141,12 +105,83 @@
             </section>
 
             <!-- Analytics card (middle) -->
-            <section class="bg-white p-6 rounded-lg shadow text-left">
-                <h2 class="text-lg font-semibold mb-4">Analytics</h2>
-                <div id="analytics" class="mb-2 text-left space-y-2">
-                    <div><strong>Total Attempts:</strong> <span id="total-attempts">0</span></div>
-                    <div><strong>Total Points:</strong> <span id="total-points">0</span></div>
-                    <div><strong>Average %:</strong> <span id="average-percent">0%</span></div>
+            <section class="bg-white dark:bg-gray-800 p-6 rounded-lg shadow dark:shadow-gray-900/10 text-left space-y-6">
+                <div class="flex items-center justify-between">
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Analytics Overview</h2>
+                    <span class="text-sm text-blue-600 dark:text-blue-400" id="analytics-timeframe">Last 30 days</span>
+                </div>
+
+                <!-- Key Metrics Grid -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                    <!-- Total Attempts Card -->
+                    <div class="bg-gradient-to-br from-blue-50 to-blue-50/50 dark:from-blue-500/10 dark:to-blue-600/20 dark:bg-opacity-15 p-4 rounded-lg border border-blue-100/50 dark:border-blue-500/20">
+                        <div class="text-sm text-blue-600 dark:text-blue-300 mb-1 font-medium">Total Attempts</div>
+                        <div class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-400 dark:to-blue-300 bg-clip-text text-transparent" id="total-attempts">0</div>
+                        <div class="text-xs text-blue-600 dark:text-blue-300 mt-1 opacity-90" id="attempts-trend">+0 this week</div>
+                    </div>
+
+                    <!-- Points Card -->
+                    <div class="bg-emerald-50 dark:bg-emerald-900/30 p-4 rounded-lg">
+                        <div class="text-sm text-emerald-600 dark:text-emerald-300 mb-1">Total Points</div>
+                        <div class="text-2xl font-bold text-emerald-700 dark:text-emerald-200" id="total-points">0</div>
+                        <div class="text-xs text-emerald-600/70 dark:text-emerald-300/70 mt-1" id="points-trend">+0 this week</div>
+                    </div>
+
+                    <!-- Average Score Card -->
+                    <div class="bg-purple-50 dark:bg-purple-900/30 p-4 rounded-lg">
+                        <div class="text-sm text-purple-600 dark:text-purple-300 mb-1">Average Score</div>
+                        <div class="text-2xl font-bold text-purple-700 dark:text-purple-200" id="average-percent">0%</div>
+                        <div class="text-xs text-purple-600/70 dark:text-purple-300/70 mt-1" id="score-trend">+0% vs last month</div>
+                    </div>
+                </div>
+
+                <!-- Achievement Stats -->
+                <div class="space-y-3">
+                    <h3 class="font-medium text-gray-900 dark:text-gray-100">Achievement Progress</h3>
+                    
+                    <!-- Longest Streak -->
+                    <div class="bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/30 dark:to-orange-900/30 p-3 rounded-lg">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="text-amber-800 dark:text-amber-200 font-medium" id="streak-count">0 questions</div>
+                                <div class="text-sm text-amber-600 dark:text-amber-300">Longest Streak</div>
+                            </div>
+                            <div class="text-amber-500 dark:text-amber-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fill-rule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879.586.585.879 1.353.879 2.121s-.293 1.536-.879 2.121z" clip-rule="evenodd"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="mt-2 h-2 bg-amber-100 dark:bg-amber-800/30 rounded-full overflow-hidden">
+                            <div id="streak-progress" class="h-full bg-amber-400 dark:bg-amber-500 transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Subject Coverage -->
+                    <div class="bg-gradient-to-r from-violet-50 to-indigo-50 dark:from-violet-900/30 dark:to-indigo-900/30 p-3 rounded-lg">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="text-violet-800 dark:text-violet-200 font-medium" id="subjects-completed">0/0 subjects</div>
+                                <div class="text-sm text-violet-600 dark:text-violet-300">Subject Coverage</div>
+                            </div>
+                            <div class="text-violet-500 dark:text-violet-400">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M9 4.804A7.968 7.968 0 005.5 4c-1.255 0-2.443.29-3.5.804v10A7.969 7.969 0 015.5 14c1.669 0 3.218.51 4.5 1.385A7.962 7.962 0 0114.5 14c1.255 0 2.443.29 3.5.804v-10A7.968 7.968 0 0014.5 4c-1.255 0-2.443.29-3.5.804V12a1 1 0 11-2 0V4.804z"/>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="mt-2 h-2 bg-violet-100 dark:bg-violet-800/30 rounded-full overflow-hidden">
+                            <div id="subjects-progress" class="h-full bg-violet-400 dark:bg-violet-500 transition-all duration-500" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Performance -->
+                <div class="space-y-2">
+                    <h3 class="font-medium text-gray-900 dark:text-gray-100">Recent Performance</h3>
+                    <div class="h-[60px] w-full" id="performance-graph">
+                        <div id="graph-placeholder" class="h-full w-full bg-gray-50 dark:bg-gray-800/50 rounded-lg animate-pulse"></div>
+                    </div>
                 </div>
             </section>
 
@@ -163,8 +198,7 @@
     
     <script type="module" src="./js/profile.js"></script>
     <script type="module">
-        import QuranPlayer from './js/quranPlayer.js';
-        window.QuranPlayer = QuranPlayer;
+
     </script>
 
     <!-- Attempt preview modal -->

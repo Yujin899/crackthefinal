@@ -6,11 +6,34 @@ import { doc, getDoc, collection, getDocs, query, orderBy, updateDoc } from "htt
 import Theme from './theme.js';
 import { showLoader, hideLoader } from './loader.js';
 
-// Cloudinary config (matches admin.js)
-const CLOUD_NAME = "dqiwsls5y";
-const UPLOAD_PRESET = "crackthefinal";
-const CLOUDINARY_UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
-const CLOUDINARY_DELETE_URL = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/delete_by_token`;
+// Generate SVG avatar for a username
+function generateAvatarSvg(username) {
+    const getInitials = (name) => {
+        const parts = name.split(' ');
+        if (parts.length >= 2) {
+            return (parts[0][0] + parts[1][0]).toUpperCase();
+        }
+        return name[0].toUpperCase();
+    };
+
+    // Generate a consistent color based on username
+    const colors = [
+        '#d946ef', // Default purple from example
+        '#ec4899', // pink
+        '#3b82f6', // blue
+        '#14b8a6', // teal
+        '#f59e0b', // amber
+        '#84cc16', // lime
+        '#6366f1'  // indigo
+    ];
+    const colorIndex = Math.abs(username.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)) % colors.length;
+    const bgColor = colors[colorIndex];
+    
+    const initials = getInitials(username);
+    const svg = `<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><rect width="100" height="100" fill="${bgColor}" /><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" font-family="Arial, sans-serif" font-size="40" fill="#ffffff">${initials}</text></svg>`;
+    
+    return `data:image/svg+xml;base64,${btoa(svg)}`;
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     // Get elements from the page
@@ -21,6 +44,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const profileEmail = document.getElementById('profile-email');
     const adminPanelButton = document.getElementById('admin-panel-button');
     const signOutButton = document.getElementById('sign-out-button');
+    const totalAttemptsEl = document.getElementById('total-attempts');
+    const totalPointsEl = document.getElementById('total-points');
+    const avgPercentEl = document.getElementById('average-percent');
+    const attemptsListEl = document.getElementById('attempts-list');
+    const attemptsTrendEl = document.getElementById('attempts-trend');
+    const pointsTrendEl = document.getElementById('points-trend');
+    const scoreTrendEl = document.getElementById('score-trend');
+    const streakCountEl = document.getElementById('streak-count');
+    const streakProgressEl = document.getElementById('streak-progress');
+    const subjectsCompletedEl = document.getElementById('subjects-completed');
+    const subjectsProgressEl = document.getElementById('subjects-progress');
+    const performanceGraphEl = document.getElementById('performance-graph');
     // Theme controls (delegates to js/theme.js)
     const initThemeControls = () => {
         const saved = Theme.initTheme();
@@ -40,52 +75,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initThemeControls();
 
-    // Initialize Quran Player toggle (dynamic import + immediate init/cleanup)
-    const initQuranPlayerToggle = async () => {
-        const toggle = document.getElementById('quran-player-toggle');
-        if (!toggle) return;
-
-        // Load saved preference
-        const userPrefs = JSON.parse(localStorage.getItem('userPreferences') || '{}');
-        toggle.checked = !!userPrefs.quranPlayerEnabled;
-
-        // Helper to remove existing player elements
-        const cleanupPlayer = () => {
-            const existingBtn = document.getElementById('quran-player-button');
-            const existingPanel = document.getElementById('quran-player-panel');
-            if (existingBtn) existingBtn.remove();
-            if (existingPanel) existingPanel.remove();
-            // clear inited flag
-            try { delete window.__quranPlayerInited; } catch(e){}
-        };
-
-        // On change, persist preference and init/cleanup without full reload
-        toggle.addEventListener('change', async () => {
-            console.debug('[profile] quran-player-toggle changed ->', toggle.checked);
-            const prefs = JSON.parse(localStorage.getItem('userPreferences') || '{}');
-            prefs.quranPlayerEnabled = toggle.checked;
-            localStorage.setItem('userPreferences', JSON.stringify(prefs));
-
-            if (toggle.checked) {
-                // dynamic import and initialize
-                try {
-                    const mod = await import('./quranPlayer.js');
-                    const playerMod = (mod && (mod.default || mod));
-                    if (playerMod && typeof playerMod.init === 'function') {
-                        playerMod.init();
-                    } else if (window.QuranPlayer && typeof window.QuranPlayer.init === 'function') {
-                        window.QuranPlayer.init();
-                    }
-                } catch (e) {
-                    console.error('Failed to load Quran Player module:', e);
-                }
-            } else {
-                cleanupPlayer();
-            }
-        });
-    };
-
-    initQuranPlayerToggle();
+    // Quran Player removed
 
     /**
      * Fetches user data from Firestore and updates all relevant UI elements.
@@ -100,137 +90,35 @@ document.addEventListener('DOMContentLoaded', () => {
             if (userDoc.exists()) {
                 const userData = userDoc.data();
                 
-                // Update header
+                // Update header and profile info
                 usernameHeader.textContent = userData.username;
-                // avatarHeader on this page is now a text 'Return to Home' span; only overwrite it if it's a container div
+                profileUsername.textContent = userData.username;
+                profileEmail.textContent = userData.email;
+
+                // Use existing avatar or generate new one
+                const avatarSvg = userData.avatar || generateAvatarSvg(userData.username);
+                
+                // If avatar doesn't exist, save the generated one
+                if (!userData.avatar) {
+                    updateDoc(userDocRef, { avatar: avatarSvg }).catch(console.error);
+                }
+                
+                // Update avatar displays
+                const avatarImg = `<img src="${avatarSvg}" alt="${userData.username}'s avatar" class="w-full h-full rounded-full">`;
+                
+                // avatarHeader on this page is now a text 'Return to Home' span; only overwrite if it's a container div
                 try {
                     if (avatarHeader && avatarHeader.tagName && avatarHeader.tagName.toLowerCase() !== 'span') {
-                        avatarHeader.innerHTML = `<img src="${userData.avatar}" alt="User Avatar" class="w-10 h-10 rounded-full object-cover">`;
+                        avatarHeader.innerHTML = `<div class="w-10 h-10">${avatarImg}</div>`;
                     }
                 } catch (e) { /* ignore DOM update if avatarHeader is not present */ }
 
-                // Update profile card
-                profileUsername.textContent = userData.username;
-                profileEmail.textContent = userData.email;
                 // profileAvatar may be an <a> (link to home) or a div - update its inner content accordingly
-                profileAvatar.innerHTML = `<img id="profile-avatar-img" src="${userData.avatar}" alt="User Avatar" class="w-24 h-24 rounded-full object-cover">`;
-
-                // wire avatar change flow
-                const changeAvatarBtn = document.getElementById('change-avatar-btn');
-                const avatarFileInput = document.getElementById('avatar-file-input');
-                // change-avatar should still trigger the file input even if profileAvatar is a link
-                if (changeAvatarBtn) changeAvatarBtn.addEventListener('click', (ev) => { ev.preventDefault(); avatarFileInput.click(); });
+                profileAvatar.innerHTML = `<div class="w-24 h-24">${avatarImg}</div>`;
 
                 
 
-                avatarFileInput.addEventListener('change', (e) => {
-                    const file = e.target.files[0];
-                    if (!file) return;
-
-                    const progressWrap = document.getElementById('avatar-upload-progress');
-                    const progressBar = document.getElementById('avatar-upload-progress-bar');
-                    const progressText = document.getElementById('avatar-upload-progress-text');
-                    progressWrap.classList.remove('hidden');
-                    progressBar.style.width = '0%';
-                    progressText.textContent = '0%';
-
-                    const xhr = new XMLHttpRequest();
-                    xhr.open('POST', CLOUDINARY_UPLOAD_URL);
-                    xhr.upload.onprogress = (evt) => {
-                        if (!evt.lengthComputable) return;
-                        const pct = Math.round((evt.loaded / evt.total) * 100);
-                        progressBar.style.width = pct + '%';
-                        progressText.textContent = pct + '%';
-                    };
-                    xhr.onload = async () => {
-                        try {
-                            if (xhr.status < 200 || xhr.status >= 300) throw new Error('Upload failed');
-                            const data = JSON.parse(xhr.responseText);
-                            if (data.error) throw new Error(data.error.message || 'Cloudinary upload error');
-
-                            const avatarUrl = data.secure_url;
-                            const publicId = data.public_id || null;
-
-                            // update user doc with new avatar public id
-                            await updateDoc(userDocRef, { avatar: avatarUrl, avatarPublicId: publicId });
-
-                            // build an optimized display URL using Cloudinary transformation params (auto quality, format)
-                            const optimized = publicId ? `https://res.cloudinary.com/${CLOUD_NAME}/image/upload/q_auto,f_auto,w_400/${encodeURIComponent(publicId)}.png` : avatarUrl;
-
-                            // update UI
-                            const img = document.getElementById('profile-avatar-img');
-                            if (img) { img.src = optimized; img.loading = 'lazy'; img.decoding = 'async'; }
-                            // Only update the header avatar if it's a container (not our 'Return to Home' span)
-                            const hdr = document.getElementById('avatar-header');
-                            if (hdr && hdr.tagName && hdr.tagName.toLowerCase() !== 'span') {
-                                hdr.innerHTML = `<img src="${optimized}" alt="User Avatar" class="w-10 h-10 rounded-full object-cover" loading="lazy" decoding="async">`;
-                            }
-                        } catch (err) {
-                            console.error('Error uploading avatar:', err);
-                            alert('Error uploading avatar: ' + (err.message || err));
-                        } finally {
-                            setTimeout(() => progressWrap.classList.add('hidden'), 800);
-                        }
-                    };
-                    xhr.onerror = () => {
-                        alert('Upload failed.');
-                        progressWrap.classList.add('hidden');
-                    };
-                    const publicIdForUser = `avatar_${user.uid}`;
-                    const fd = new FormData();
-                    fd.append('file', file);
-                    fd.append('upload_preset', UPLOAD_PRESET);
-                    fd.append('public_id', publicIdForUser);
-                    // Optional: ask Cloudinary to automatically optimize format/quality on delivery (applied on URL)
-                    xhr.send(fd);
-                });
-
-                // delete avatar flow (overwrites existing public_id with tiny svg then clears fields)
-                const deleteAvatarBtn = document.getElementById('delete-avatar-btn');
-                if (deleteAvatarBtn) {
-                    if (userData.avatar) {
-                        deleteAvatarBtn.classList.remove('hidden');
-                    } else {
-                        deleteAvatarBtn.classList.add('hidden');
-                    }
-                    deleteAvatarBtn.addEventListener('click', async () => {
-                    if (!confirm('Remove your photo and revert to initials?')) return;
-                    try {
-                        const publicIdToUse = userData.avatarPublicId || `avatar_${user.uid}`;
-                        const tinySvg = `<svg xmlns='http://www.w3.org/2000/svg' width='16' height='16'></svg>`;
-                        const blob = new Blob([tinySvg], { type: 'image/svg+xml' });
-                        const fd2 = new FormData();
-                        fd2.append('file', blob);
-                        fd2.append('upload_preset', UPLOAD_PRESET);
-                        fd2.append('public_id', publicIdToUse);
-
-                        await new Promise((resolve, reject) => {
-                            const r = new XMLHttpRequest();
-                            r.open('POST', CLOUDINARY_UPLOAD_URL);
-                            r.onload = () => {
-                                if (r.status >= 200 && r.status < 300) resolve(r.responseText);
-                                else reject(new Error('Failed to overwrite avatar'));
-                            };
-                            r.onerror = () => reject(new Error('Network error'));
-                            r.send(fd2);
-                        });
-
-                        await updateDoc(userDocRef, { avatar: null, avatarPublicId: null });
-                        const initial = (userData.username || 'U').charAt(0).toUpperCase();
-                        profileAvatar.innerHTML = `<div class="w-24 h-24 bg-slate-200 rounded-full flex items-center justify-center text-2xl font-bold text-slate-600">${initial}</div>`;
-                        try {
-                            if (avatarHeader && avatarHeader.tagName && avatarHeader.tagName.toLowerCase() !== 'span') {
-                                avatarHeader.innerHTML = `<div class="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center text-sm font-bold text-slate-600">${initial}</div>`;
-                            }
-                        } catch (e) { /* ignore */ }
-                        deleteAvatarBtn.classList.add('hidden');
-                    } catch (err) {
-                        console.error('Error removing avatar:', err);
-                        alert('Could not remove avatar.');
-                    }
-                });
-
-                }  // Close the deleteAvatarBtn check
+                // Letter avatars are generated from username, no upload/delete needed
 
                 // username edit
                 const editUsernameBtn = document.getElementById('edit-username-btn');
@@ -290,6 +178,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const totalAttemptsEl = document.getElementById('total-attempts');
         const totalPointsEl = document.getElementById('total-points');
         const avgPercentEl = document.getElementById('average-percent');
+        const allSubjects = new Set(); // Initialize allSubjects here
 
         attemptsListEl.innerHTML = '<p class="text-gray-500">Loading attempts...</p>';
         // Guard: only attempt to read the attempts collection if the currently authenticated user
@@ -325,6 +214,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const sDoc = await getDoc(doc(db, 'subjects', subjectId));
                     const name = sDoc.exists() ? (sDoc.data().name || subjectId) : subjectId;
                     subjectNameCache.set(subjectId, name);
+                    allSubjects.add(subjectId); // Add to tracked subjects
                     return name;
                 } catch (e) {
                     console.error('Error fetching subject name:', e);
@@ -347,14 +237,103 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             };
 
-            // compute analytics
+            // Compute overall analytics
             const totalAttempts = attempts.length;
             const totalPoints = attempts.reduce((s, a) => s + (a.totalPoints || 0), 0);
             const avgPercent = Math.round((attempts.reduce((s, a) => s + (a.percent || 0), 0) / totalAttempts) || 0);
 
+            // Update basic stats
             totalAttemptsEl.textContent = String(totalAttempts);
             totalPointsEl.textContent = String(totalPoints);
             avgPercentEl.textContent = `${avgPercent}%`;
+
+            // Compute trends
+            const now = new Date();
+            const weekAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+            const monthAgo = new Date(now - 30 * 24 * 60 * 60 * 1000);
+
+            const thisWeekAttempts = attempts.filter(a => a.createdAt?.toDate() >= weekAgo).length;
+            const thisMonthAttempts = attempts.filter(a => a.createdAt?.toDate() >= monthAgo);
+            const lastMonthAttempts = attempts.filter(a => {
+                const date = a.createdAt?.toDate();
+                return date >= new Date(monthAgo - 30 * 24 * 60 * 60 * 1000) && date < monthAgo;
+            });
+
+            // Update trend indicators
+            attemptsTrendEl.textContent = `+${thisWeekAttempts} this week`;
+            pointsTrendEl.textContent = `+${attempts.filter(a => a.createdAt?.toDate() >= weekAgo)
+                .reduce((s, a) => s + (a.totalPoints || 0), 0)} this week`;
+
+            const thisMonthAvg = Math.round(thisMonthAttempts.reduce((s, a) => s + (a.percent || 0), 0) / thisMonthAttempts.length || 0);
+            const lastMonthAvg = Math.round(lastMonthAttempts.reduce((s, a) => s + (a.percent || 0), 0) / lastMonthAttempts.length || 0);
+            const scoreDiff = thisMonthAvg - lastMonthAvg;
+            scoreTrendEl.textContent = `${scoreDiff >= 0 ? '+' : ''}${scoreDiff}% vs last month`;
+
+            // Compute streak
+            let currentStreak = 0;
+            let maxStreak = 0;
+            let lastDate = null;
+            
+            for (const attempt of attempts) {
+                const date = attempt.createdAt?.toDate();
+                if (!date) continue;
+                
+                if (!lastDate || date.toDateString() === lastDate.toDateString()) {
+                    currentStreak++;
+                } else if (Math.abs(date - lastDate) <= 24 * 60 * 60 * 1000) {
+                    currentStreak++;
+                } else {
+                    currentStreak = 1;
+                }
+                
+                maxStreak = Math.max(maxStreak, currentStreak);
+                lastDate = date;
+            }
+
+            // Update streak UI
+            streakCountEl.textContent = `${maxStreak} questions`;
+            streakProgressEl.style.width = `${Math.min((maxStreak / 50) * 100, 100)}%`; // 50 questions as target
+
+            // Subject coverage
+            const attemptedSubjects = new Set(attempts.map(a => a.subjectId).filter(Boolean));
+            allSubjects.add(...Array.from(attemptedSubjects)); // Add to all subjects set
+            subjectsCompletedEl.textContent = `${attemptedSubjects.size}/${allSubjects.size} subjects`;
+            subjectsProgressEl.style.width = `${Math.round((attemptedSubjects.size / Math.max(allSubjects.size, 1)) * 100)}%`;
+
+            // Performance graph (last 10 attempts)
+            const graphData = attempts.slice(0, 10).map(a => a.percent || 0).reverse();
+            if (graphData.length > 0) {
+                performanceGraphEl.innerHTML = ''; // Clear placeholder
+                performanceGraphEl.className = 'relative h-[60px] w-full bg-gray-50 dark:bg-gray-800/30 rounded-lg p-1 flex items-end justify-between gap-1';
+
+                const maxHeight = 52; // Adjusted for padding
+                graphData.forEach((score, i) => {
+                    const bar = document.createElement('div');
+                    const height = Math.max((score / 100) * maxHeight, 4);
+                    bar.className = 'bg-blue-400 dark:bg-blue-500 rounded-t transition-all duration-300 w-full';
+                    bar.style.height = `${height}px`;
+                    bar.title = `${score}%`;
+
+                    // Create tooltip
+                    const tooltip = document.createElement('div');
+                    tooltip.className = 'absolute -top-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white px-2 py-1 rounded text-xs opacity-0 transition-opacity';
+                    tooltip.textContent = `${score}%`;
+                    bar.appendChild(tooltip);
+
+                    // Add hover effect
+                    bar.addEventListener('mouseenter', () => {
+                        tooltip.classList.add('opacity-100');
+                    });
+                    bar.addEventListener('mouseleave', () => {
+                        tooltip.classList.remove('opacity-100');
+                    });
+
+                    const barContainer = document.createElement('div');
+                    barContainer.className = 'relative flex-1';
+                    barContainer.appendChild(bar);
+                    performanceGraphEl.appendChild(barContainer);
+                });
+            }
 
             // render attempts (fetch subject/quiz names as needed)
             attemptsListEl.innerHTML = '';
@@ -363,15 +342,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const quizName = await fetchQuizName(attempt.subjectId, attempt.quizId);
 
                 const item = document.createElement('div');
-                item.className = 'p-3 bg-white rounded-lg shadow-sm flex items-center justify-between';
+                item.className = 'p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm flex items-center justify-between';
                 item.innerHTML = `
                     <div>
-                        <div class="font-semibold">${quizName}</div>
-                        <div class="text-sm text-gray-500">Subject: ${subjName}</div>
-                        <div class="text-sm text-gray-500">Score: ${attempt.totalPoints} / ${attempt.maxPoints} — ${attempt.percent}%</div>
+                        <div class="font-semibold dark:text-white">${quizName}</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">Subject: ${subjName}</div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">Score: ${attempt.totalPoints} / ${attempt.maxPoints} — ${attempt.percent}%</div>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button data-attempt-id="${attempt.id}" class="preview-attempt-btn bg-blue-50 text-blue-600 px-3 py-1 rounded">Preview</button>
+                        <button data-attempt-id="${attempt.id}" class="preview-attempt-btn bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-400 px-3 py-1 rounded hover:bg-blue-100 dark:hover:bg-blue-800 transition-colors">Preview</button>
                         <div class="text-xs text-gray-400">${attempt.createdAt?.toDate ? attempt.createdAt.toDate().toLocaleString() : ''}</div>
                     </div>
                 `;
@@ -409,10 +388,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (attempt.details && Array.isArray(attempt.details)) {
                 attempt.details.forEach((d, i) => {
                     const row = document.createElement('div');
-                    row.className = 'p-3 border-b';
+                    row.className = 'p-3 border-b dark:border-gray-700';
 
                     const qTitle = document.createElement('div');
-                    qTitle.className = 'font-semibold mb-2';
+                    qTitle.className = 'font-semibold mb-2 dark:text-white';
                     qTitle.textContent = `${i+1}. ${d.text || 'Question'}`;
                     row.appendChild(qTitle);
 
@@ -466,7 +445,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     body.appendChild(row);
                 });
             } else {
-                body.innerHTML = '<p class="text-gray-500">No details available for this attempt.</p>';
+                body.innerHTML = '<p class="text-gray-500 dark:text-gray-400">No details available for this attempt.</p>';
             }
         modal.classList.remove('hidden');
         modal.classList.add('flex');
