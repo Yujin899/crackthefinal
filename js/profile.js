@@ -77,6 +77,78 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Quran Player removed
 
+    // ----- Chart helpers (rendering performance & subject breakdown) -----
+    // Dynamically load a script by src
+    function loadScript(src) {
+        return new Promise((res, rej) => {
+            if (document.querySelector(`script[src="${src}"]`)) return res();
+            const s = document.createElement('script');
+            s.src = src;
+            s.onload = () => res();
+            s.onerror = (e) => rej(e);
+            document.head.appendChild(s);
+        });
+    }
+
+    function getColorPair() {
+        const dark = document.documentElement.classList.contains('dark');
+        if (dark) {
+            return { text: '#E5E7EB', grid: '#374151', primary: '#60A5FA', secondary: '#FBBF24' };
+        }
+        return { text: '#1F2937', grid: '#E5E7EB', primary: '#3B82F6', secondary: '#F59E0B' };
+    }
+
+    let performanceChart = null;
+    let subjectsChart = null;
+
+    function renderCharts(attempts, subjectsMap) {
+        // attempts: array of {percent, createdAt, subjectId}
+        // subjectsMap: Map subjectId -> name
+        loadScript('https://cdn.jsdelivr.net/npm/chart.js').then(() => {
+            const colors = getColorPair();
+
+            // Performance chart (last 30 attempts)
+            const recent = attempts.slice(-30);
+            const labels = recent.map((a, i) => `${i + 1}`);
+            const data = recent.map(a => Math.round((a.percent || 0) * 100) / 100);
+
+            const perfEl = document.getElementById('performance-chart');
+            if (perfEl) {
+                const perfCtx = perfEl.getContext('2d');
+                if (performanceChart) performanceChart.destroy();
+                performanceChart = new Chart(perfCtx, {
+                    type: 'line',
+                    data: { labels, datasets: [{ label: 'Score %', data, fill: true, backgroundColor: colors.primary + '33', borderColor: colors.primary, pointRadius: 3, tension: 0.25 }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: colors.grid }, ticks: { color: colors.text } }, y: { min: 0, max: 100, grid: { color: colors.grid }, ticks: { color: colors.text } } } }
+                });
+            }
+
+            // Subjects chart: average percent per subject (top 8 by attempts)
+            const bySubject = {};
+            attempts.forEach(a => {
+                const id = a.subjectId || 'unknown';
+                if (!bySubject[id]) bySubject[id] = { total: 0, count: 0 };
+                bySubject[id].total += (a.percent || 0);
+                bySubject[id].count += 1;
+            });
+
+            const entries = Object.entries(bySubject).map(([id, v]) => ({ id, avg: v.count ? (v.total / v.count) : 0, count: v.count, name: subjectsMap.get(id) || id }));
+            entries.sort((a, b) => b.count - a.count);
+            const top = entries.slice(0, 8);
+
+            const subjEl = document.getElementById('subjects-chart');
+            if (subjEl) {
+                const subjCtx = subjEl.getContext('2d');
+                if (subjectsChart) subjectsChart.destroy();
+                subjectsChart = new Chart(subjCtx, {
+                    type: 'bar',
+                    data: { labels: top.map(t => t.name), datasets: [{ label: 'Avg %', data: top.map(t => Math.round(t.avg * 100) / 100), backgroundColor: top.map((_, i) => i % 2 === 0 ? colors.primary : colors.secondary) }] },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { grid: { color: colors.grid }, ticks: { color: colors.text } }, y: { min: 0, max: 100, grid: { color: colors.grid }, ticks: { color: colors.text } } } }
+                });
+            }
+        }).catch(err => console.warn('Failed to load Chart.js', err));
+    }
+
     /**
      * Fetches user data from Firestore and updates all relevant UI elements.
      * @param {object} user - The Firebase Auth user object.
@@ -178,14 +250,26 @@ document.addEventListener('DOMContentLoaded', () => {
         const totalAttemptsEl = document.getElementById('total-attempts');
         const totalPointsEl = document.getElementById('total-points');
         const avgPercentEl = document.getElementById('average-percent');
+        const attemptsTrendEl_local = document.getElementById('attempts-trend');
+        const pointsTrendEl_local = document.getElementById('points-trend');
+        const scoreTrendEl_local = document.getElementById('score-trend');
+        const streakCountEl_local = document.getElementById('streak-count');
+        const streakProgressEl_local = document.getElementById('streak-progress');
+        const subjectsCompletedEl_local = document.getElementById('subjects-completed');
+        const subjectsProgressEl_local = document.getElementById('subjects-progress');
+        const performanceGraphEl_local = document.getElementById('performance-graph');
         const allSubjects = new Set(); // Initialize allSubjects here
 
-        attemptsListEl.innerHTML = '<p class="text-gray-500">Loading attempts...</p>';
+        if (attemptsListEl) {
+            attemptsListEl.innerHTML = '<p class="text-gray-500">Loading attempts...</p>';
+        } else {
+            console.warn('profile.js: attempts-list element not found in DOM; skipping attempts render.');
+        }
         // Guard: only attempt to read the attempts collection if the currently authenticated user
         // matches the uid requested. This avoids permission-denied errors when auth state is out
         // of sync or the page is loaded for a different user id.
         if (!auth.currentUser || auth.currentUser.uid !== uid) {
-            attemptsListEl.innerHTML = '<p class="text-gray-500">Sign in to view your attempts.</p>';
+            if (attemptsListEl) attemptsListEl.innerHTML = '<p class="text-gray-500">Sign in to view your attempts.</p>';
             hideLoader();
             return;
         }
@@ -193,10 +277,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const attemptsQuery = query(collection(db, 'users', uid, 'attempts'), orderBy('createdAt', 'desc'));
             const snap = await getDocs(attemptsQuery);
             if (snap.empty) {
-                attemptsListEl.innerHTML = '<p class="text-gray-500">No attempts yet.</p>';
-                totalAttemptsEl.textContent = '0';
-                totalPointsEl.textContent = '0';
-                avgPercentEl.textContent = '0%';
+                if (attemptsListEl) attemptsListEl.innerHTML = '<p class="text-gray-500">No attempts yet.</p>';
+                if (totalAttemptsEl) totalAttemptsEl.textContent = '0';
+                if (totalPointsEl) totalPointsEl.textContent = '0';
+                if (avgPercentEl) avgPercentEl.textContent = '0%';
                 hideLoader();
                 return;
             }
@@ -243,9 +327,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const avgPercent = Math.round((attempts.reduce((s, a) => s + (a.percent || 0), 0) / totalAttempts) || 0);
 
             // Update basic stats
-            totalAttemptsEl.textContent = String(totalAttempts);
-            totalPointsEl.textContent = String(totalPoints);
-            avgPercentEl.textContent = `${avgPercent}%`;
+            if (totalAttemptsEl) totalAttemptsEl.textContent = String(totalAttempts);
+            if (totalPointsEl) totalPointsEl.textContent = String(totalPoints);
+            if (avgPercentEl) avgPercentEl.textContent = `${avgPercent}%`;
 
             // Compute trends
             const now = new Date();
@@ -260,14 +344,14 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             // Update trend indicators
-            attemptsTrendEl.textContent = `+${thisWeekAttempts} this week`;
-            pointsTrendEl.textContent = `+${attempts.filter(a => a.createdAt?.toDate() >= weekAgo)
+            if (attemptsTrendEl_local) attemptsTrendEl_local.textContent = `+${thisWeekAttempts} this week`;
+            if (pointsTrendEl_local) pointsTrendEl_local.textContent = `+${attempts.filter(a => a.createdAt?.toDate() >= weekAgo)
                 .reduce((s, a) => s + (a.totalPoints || 0), 0)} this week`;
 
             const thisMonthAvg = Math.round(thisMonthAttempts.reduce((s, a) => s + (a.percent || 0), 0) / thisMonthAttempts.length || 0);
             const lastMonthAvg = Math.round(lastMonthAttempts.reduce((s, a) => s + (a.percent || 0), 0) / lastMonthAttempts.length || 0);
             const scoreDiff = thisMonthAvg - lastMonthAvg;
-            scoreTrendEl.textContent = `${scoreDiff >= 0 ? '+' : ''}${scoreDiff}% vs last month`;
+            if (scoreTrendEl_local) scoreTrendEl_local.textContent = `${scoreDiff >= 0 ? '+' : ''}${scoreDiff}% vs last month`;
 
             // Compute streak
             let currentStreak = 0;
@@ -291,20 +375,31 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // Update streak UI
-            streakCountEl.textContent = `${maxStreak} questions`;
-            streakProgressEl.style.width = `${Math.min((maxStreak / 50) * 100, 100)}%`; // 50 questions as target
+            if (streakCountEl_local) streakCountEl_local.textContent = `${maxStreak} questions`;
+            if (streakProgressEl_local) streakProgressEl_local.style.width = `${Math.min((maxStreak / 50) * 100, 100)}%`; // 50 questions as target
 
             // Subject coverage
             const attemptedSubjects = new Set(attempts.map(a => a.subjectId).filter(Boolean));
-            allSubjects.add(...Array.from(attemptedSubjects)); // Add to all subjects set
-            subjectsCompletedEl.textContent = `${attemptedSubjects.size}/${allSubjects.size} subjects`;
-            subjectsProgressEl.style.width = `${Math.round((attemptedSubjects.size / Math.max(allSubjects.size, 1)) * 100)}%`;
+            // Add attempted subjects to tracked set
+            for (const s of attemptedSubjects) allSubjects.add(s);
+            if (subjectsCompletedEl_local) subjectsCompletedEl_local.textContent = `${attemptedSubjects.size}/${allSubjects.size} subjects`;
+            if (subjectsProgressEl_local) subjectsProgressEl_local.style.width = `${Math.round((attemptedSubjects.size / Math.max(allSubjects.size, 1)) * 100)}%`;
+
+            // Pre-fetch subject names used in charts/list so charts can show friendly names
+            await Promise.all(Array.from(attemptedSubjects).map(id => fetchSubjectName(id)));
+
+            // Render charts (performance over recent attempts and subject breakdown)
+            try {
+                renderCharts(attempts, subjectNameCache);
+            } catch (e) {
+                console.warn('Could not render charts', e);
+            }
 
             // Performance graph (last 10 attempts)
             const graphData = attempts.slice(0, 10).map(a => a.percent || 0).reverse();
-            if (graphData.length > 0) {
-                performanceGraphEl.innerHTML = ''; // Clear placeholder
-                performanceGraphEl.className = 'relative h-[60px] w-full bg-gray-50 dark:bg-gray-800/30 rounded-lg p-1 flex items-end justify-between gap-1';
+            if (graphData.length > 0 && performanceGraphEl_local) {
+                performanceGraphEl_local.innerHTML = ''; // Clear placeholder
+                performanceGraphEl_local.className = 'relative h-[60px] w-full bg-gray-50 dark:bg-gray-800/30 rounded-lg p-1 flex items-end justify-between gap-1';
 
                 const maxHeight = 52; // Adjusted for padding
                 graphData.forEach((score, i) => {
@@ -331,12 +426,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     const barContainer = document.createElement('div');
                     barContainer.className = 'relative flex-1';
                     barContainer.appendChild(bar);
-                    performanceGraphEl.appendChild(barContainer);
+                    performanceGraphEl_local.appendChild(barContainer);
                 });
             }
 
             // render attempts (fetch subject/quiz names as needed)
-            attemptsListEl.innerHTML = '';
+            if (attemptsListEl) attemptsListEl.innerHTML = '';
             for (const attempt of attempts) {
                 const subjName = await fetchSubjectName(attempt.subjectId);
                 const quizName = await fetchQuizName(attempt.subjectId, attempt.quizId);
@@ -354,7 +449,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <div class="text-xs text-gray-400">${attempt.createdAt?.toDate ? attempt.createdAt.toDate().toLocaleString() : ''}</div>
                     </div>
                 `;
-                attemptsListEl.appendChild(item);
+                if (attemptsListEl) attemptsListEl.appendChild(item);
             }
 
             // wire preview buttons
@@ -372,10 +467,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (msg === 'permission-denied' || (typeof msg === 'string' && msg.toLowerCase().includes('missing or insufficient permissions'))) {
                 // Don't print the full FirebaseError object to the console to avoid noisy stacks in the UI console.
                 console.warn('Permission denied when fetching attempts.');
-                attemptsListEl.innerHTML = `<p class="text-yellow-600">You don't have permission to view attempts. Please sign in with the account that owns these attempts, or contact support.</p>`;
+                if (attemptsListEl) attemptsListEl.innerHTML = `<p class="text-yellow-600">You don't have permission to view attempts. Please sign in with the account that owns these attempts, or contact support.</p>`;
             } else {
                 console.error('Error fetching attempts:', err);
-                attemptsListEl.innerHTML = '<p class="text-red-500">Error loading attempts.</p>';
+                if (attemptsListEl) attemptsListEl.innerHTML = '<p class="text-red-500">Error loading attempts.</p>';
             }
             hideLoader();
         }

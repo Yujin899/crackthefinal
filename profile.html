@@ -176,11 +176,16 @@
                     </div>
                 </div>
 
-                <!-- Recent Performance -->
-                <div class="space-y-2">
+                <!-- Recent Performance (charts) -->
+                <div class="space-y-3">
                     <h3 class="font-medium text-gray-900 dark:text-gray-100">Recent Performance</h3>
-                    <div class="h-[60px] w-full" id="performance-graph">
-                        <div id="graph-placeholder" class="h-full w-full bg-gray-50 dark:bg-gray-800/50 rounded-lg animate-pulse"></div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <canvas id="performance-chart" class="w-full h-28"></canvas>
+                        </div>
+                        <div class="p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+                            <canvas id="subjects-chart" class="w-full h-28"></canvas>
+                        </div>
                     </div>
                 </div>
             </section>
