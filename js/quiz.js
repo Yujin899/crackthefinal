@@ -179,43 +179,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // After persisting an attempt, optionally mark the next quiz as unlocked for this user
   async function persistUnlockNextIfEligible(resultSummary) {
-    if (!currentUser) return;
-    try {
-      // fetch all quizzes for this subject in order to locate the next quiz
-      const quizzesSnap = await getDocs(query(collection(db, 'subjects', subjectId, 'quizzes'), orderBy('createdAt', 'asc')));
-      const quizzes = quizzesSnap.docs.map(d => ({ id: d.id, data: d.data() }));
-      const idx = quizzes.findIndex(q => q.id === quizId);
-      if (idx === -1) return; // can't find position
-      const next = quizzes[idx + 1];
-      if (!next) return; // no next quiz
-
-      // get subject default unlock percent (if any)
-      let subjectDefault = 60;
-      try {
-        const subjectDoc = await getDoc(doc(db, 'subjects', subjectId));
-        if (subjectDoc && subjectDoc.exists()) {
-          const sd = subjectDoc.data();
-          if (typeof sd.minPointsToUnlock === 'number') subjectDefault = sd.minPointsToUnlock;
-        }
-      } catch (e) {
-        // ignore and use default
-      }
-
-      const requiredPercent = (typeof next.data.minPointsToUnlock === 'number') ? next.data.minPointsToUnlock : subjectDefault;
-
-      // if the user's percent meets or exceeds the required threshold, persist unlock for the next quiz
-      if (typeof resultSummary.percent === 'number' && resultSummary.percent >= requiredPercent) {
-        const unlockedRef = doc(db, 'users', currentUser.uid, 'unlockedQuizzes', subjectId);
-        try {
-          await setDoc(unlockedRef, { quizIds: arrayUnion(next.id) }, { merge: true });
-        } catch (e) {
-          // best-effort: log but don't block
-          console.warn('Failed to persist unlocked quiz flag:', e);
-        }
-      }
-    } catch (e) {
-      console.warn('Error while checking/persisting next-quiz unlock:', e);
-    }
+    // Locking/unlock persistence disabled — quizzes are open by default.
+    return;
   }
 
   function renderQuestion() {

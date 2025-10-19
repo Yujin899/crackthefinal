@@ -120,8 +120,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // If we have a signed-in user, fetch their attempts for this subject and compute the BEST percent per quiz
         // We use the highest-ever percent for each quiz so that once a user has met the requirement, the unlock remains permanent.
         let bestPercentByQuiz = new Map();
-        // also fetch persisted unlocked quiz IDs for this subject (if any)
-        let persistedUnlockedQuizIds = new Set();
         if (user) {
             try {
                 const attemptsQuery = query(collection(db, 'users', user.uid, 'attempts'), where('subjectId', '==', subjectId));
@@ -137,16 +135,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (e) {
                 console.error('Error fetching user attempts for subject:', e);
             }
-            // try to read persisted unlocked flags (best-effort)
-            try {
-                const unlockedDoc = await getDoc(doc(db, 'users', user.uid, 'unlockedQuizzes', subjectId));
-                if (unlockedDoc && unlockedDoc.exists()) {
-                    const data = unlockedDoc.data();
-                    if (Array.isArray(data.quizIds)) data.quizIds.forEach(id => persistedUnlockedQuizIds.add(id));
-                }
-            } catch (e) {
-                // ignore if unable to read
-            }
+            // unlockedQuizzes persistence is no longer used; skip reading it to save reads
         }
 
         if (quizzesSnapshot.empty) {
@@ -162,27 +151,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const quiz = quizzes[i].data;
             const quizURL = `/quiz.html?subjectId=${subjectId}&quizId=${quizId}`;
 
-            // determine required percent to unlock this quiz: quiz -> subject -> default 60
+            // NOTE: progression locks removed — quizzes are always available (except scheduled releases)
+            // keep releaseAt handling but ignore any minPointsToUnlock / persisted unlock flags
             const requiredPercent = typeof quiz.minPointsToUnlock === 'number'
                 ? quiz.minPointsToUnlock
                 : (typeof subjectDoc.data().minPointsToUnlock === 'number' ? subjectDoc.data().minPointsToUnlock : 60);
-
-            // first quiz is never locked
-            let locked = false;
-            let userBestPercentOnPrev = 0;
-            if (i === 0) {
-                locked = false;
-            } else {
-                const prevQuizId = quizzes[i - 1].id;
-                // if the next quiz was explicitly unlocked earlier, treat it as unlocked
-                if (persistedUnlockedQuizIds.has(quizId)) {
-                    locked = false;
-                } else {
-                    // use best-ever percent (so once unlocked it stays unlocked)
-                    userBestPercentOnPrev = bestPercentByQuiz.get(prevQuizId) || 0;
-                    locked = requiredPercent > 0 && userBestPercentOnPrev < requiredPercent;
-                }
-            }
+            let userBestPercentOnPrev = bestPercentByQuiz.get(quizzes[i - 1]?.id) || 0; // keep for informational uses if needed
 
             // check releaseAt (can be Firestore Timestamp or ISO string)
             let releaseAt = null;
@@ -200,23 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const now = new Date();
             const isUpcoming = releaseAt && now < releaseAt;
 
-            if (locked) {
-                quizzesHTML += `
-                    <div class="bg-gray-50 p-4 rounded-lg shadow-md opacity-95 border border-gray-200">
-                        <div class="flex items-start justify-between gap-4">
-                            <h3 class="font-semibold text-lg text-slate-900 break-words">${quiz.name}</h3>
-                            <div class="hidden sm:flex flex-shrink-0 items-center gap-2 text-sm text-gray-500">
-                                <svg xmlns=\"http://www.w3.org/2000/svg\" class=\"h-5 w-5 text-gray-400\" viewBox=\"0 0 20 20\" fill=\"currentColor\"><path fill-rule=\"evenodd\" d=\"M5 8V6a5 5 0 1110 0v2h1a1 1 0 011 1v8a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1h1zm2-2a3 3 0 116 0v2H7V6z\" clip-rule=\"evenodd\"/></svg>
-                                <span>Locked: need ${requiredPercent}% (you: ${userBestPercentOnPrev}%)</span>
-                            </div>
-                        </div>
-                        <div class="mt-2 sm:hidden text-sm text-gray-500 flex items-start gap-2">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M5 8V6a5 5 0 1110 0v2H7V6z" clip-rule="evenodd"/></svg>
-                            <span class="break-words">Locked: need ${requiredPercent}% in previous quiz (you: ${userBestPercentOnPrev}%)</span>
-                        </div>
-                    </div>
-                `;
-            } else if (isUpcoming) {
+            if (isUpcoming) {
                 const releaseText = releaseAt ? releaseAt.toLocaleString() : 'TBA';
                 quizzesHTML += `
                     <a href="${quizURL}" class="relative block bg-gray-50 p-4 rounded-lg shadow-md hover:bg-white transition border border-gray-200">

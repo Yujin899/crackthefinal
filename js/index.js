@@ -4,7 +4,6 @@ import { auth, db } from './firebase.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-auth.js";
 import { doc, getDoc, setDoc, collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 import { showLoader, hideLoader } from './loader.js';
-import Shop from './shop.js';
 // Feature flag: toggle to true when the shop is ready for production
 const SHOP_ENABLED = false;
 
@@ -173,19 +172,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (user) {
             fetchAndDisplayUserData(user);
             displayLeaderboard();
-            // initialize shop if present (feature-flagged)
-            const shopEl = document.getElementById('shop-root');
-            if (shopEl) {
-                if (SHOP_ENABLED) {
-                    Shop.renderShop(db, user.uid, shopEl).catch(e => console.error('Shop init error', e));
-                } else {
-                    shopEl.innerHTML = `
-                        <div class="p-6 text-center">
-                            <h3 class="text-xl font-semibold mb-2">Shop — Coming Soon</h3>
-                            <p class="text-sm text-gray-500">We're polishing the shop before launch. Check back later!</p>
-                        </div>`;
-                }
-            }
+            // Shop feature removed from UI
         } else {
             // Show a Sign In button in the header
             if (headerRight) {

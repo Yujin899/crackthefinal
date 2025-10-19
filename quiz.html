@@ -56,11 +56,14 @@
       justify-content: space-between !important;
       pointer-events: auto !important;
       border-radius: 9999px !important;
-      background-color: rgba(255,255,255,0.94) !important;
+      background-color: rgba(255,255,255,1) !important; /* solid like header */
       backdrop-filter: blur(6px) !important;
       box-shadow: 0 8px 24px rgba(2,6,23,0.08) !important;
       z-index: 60 !important;
     }
+    /* dark mode: mobile nav and answer container background tweaks */
+  html.dark #mobile-nav { background-color: rgba(17,24,39,1) !important; box-shadow: 0 8px 24px rgba(2,6,23,0.36) !important; }
+  html.dark #answers-body { background-color: transparent; }
     #mobile-nav button { flex: 1 1 0; min-width: 110px; padding-left: 1rem; padding-right: 1rem; }
 
     /* Slightly higher on large screens so it doesn't overlap floating UI */
@@ -103,13 +106,13 @@
 
   <main>
     <!-- Full-width question header with white background -->
-    <div id="question-header-bar" class="bg-white p-6 mb-6 shadow-md">
+    <div id="question-header-bar" class="bg-white dark:bg-gray-800 dark:text-white p-6 mb-6 shadow-md dark:shadow-gray-900/10">
   <h2 id="question-text" class="text-xl font-semibold">Loading question...</h2>
     </div>
 
     <div class="container mx-auto max-w-5xl p-6">
       <section class="flex justify-center">
-        <div id="quiz-card" class="relative w-full max-w-3xl bg-white rounded-lg shadow-xl overflow-hidden">
+  <div id="quiz-card" class="relative w-full max-w-3xl bg-white dark:bg-gray-800 rounded-lg shadow-xl dark:shadow-gray-900/10 overflow-hidden">
 
           <!-- Body area: answers -->
           <div id="answers-body" class="p-6 grid gap-3">
@@ -122,19 +125,19 @@
     </div>
   </main>
   <!-- New footer navigation (centered, responsive) -->
-  <nav id="footer-nav" role="navigation" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 w-full max-w-5xl px-4 z-50">
-    <div class="bg-white/95 backdrop-blur-sm rounded-full p-2 flex items-center justify-between gap-3 shadow-lg">
-      <button id="footer-prev" class="px-4 py-2 rounded-full text-slate-700 hover:bg-blue-400/10 disabled:opacity-40" aria-label="Previous question">
+    <nav id="footer-nav" role="navigation" class="fixed bottom-4 left-1/2 transform -translate-x-1/2 w-full max-w-5xl px-4 z-50">
+  <div class="bg-white dark:bg-gray-800 rounded-full p-2 flex items-center justify-between gap-3 shadow-md dark:shadow-gray-900/10">
+      <button id="footer-prev" class="px-4 py-2 rounded-full text-slate-700 dark:text-slate-200 hover:bg-blue-400/10 disabled:opacity-40" aria-label="Previous question">
         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" /></svg>
       </button>
 
       <div id="footer-progress" class="flex-1 text-center text-sm text-gray-600">&nbsp;</div>
 
       <div class="flex items-center gap-2">
-        <button id="footer-next" class="px-4 py-2 rounded-full text-slate-700 hover:bg-blue-400/10" aria-label="Next question">
+  <button id="footer-next" class="px-4 py-2 rounded-full text-slate-700 dark:text-slate-200 hover:bg-blue-400/10" aria-label="Next question">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-current" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
         </button>
-        <button id="footer-submit" class="px-4 py-2 rounded-full bg-blue-500 text-white hidden hover:bg-blue-600" aria-label="Submit quiz">Submit</button>
+  <button id="footer-submit" class="px-4 py-2 rounded-full bg-blue-500 text-white hidden hover:bg-blue-600" aria-label="Submit quiz">Submit</button>
       </div>
     </div>
   </nav>
