@@ -19,6 +19,8 @@
         details summary { display: flex; align-items: center; justify-content: space-between; }
         details summary .ctf-arrow { transition: transform 0.18s ease; display: inline-block; margin-right: 0.5rem; }
         details[open] summary .ctf-arrow { transform: rotate(90deg); }
+        :focus-visible { outline: 3px solid rgba(59,130,246,0.25); outline-offset: 2px; }
+        .skip-to-content:focus { left: 1rem; top: 1rem; transform: none; }
     </style>
     <script type="module">
         import Theme from './js/theme.js';
@@ -27,6 +29,8 @@
     <!-- notifications removed -->
 </head>
 <body class="text-gray-800">
+
+    <a href="#main-content" class="skip-to-content absolute left-4 top-4 z-50 sr-only focus:not-sr-only bg-white text-blue-600 px-3 py-2 rounded shadow">Skip to content</a>
 
     <header class="bg-white shadow-md p-4 flex justify-between items-center sticky top-0 z-50">
                 <a href="/index.html" class="text-2xl font-bold text-blue-500">CrackTheFinal</a>
@@ -197,9 +201,15 @@
             </section>
 
             <!-- Attempts list (right, spans 2 cols on md+) -->
-            <section class="bg-white p-6 rounded-lg shadow text-left md:col-span-2">
-                <h2 class="text-lg font-semibold mb-4">Attempts</h2>
-                <div id="attempts-list" class="space-y-4">
+            <section id="main-content" class="bg-white p-6 rounded-lg shadow text-left md:col-span-2">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-semibold">Attempts</h2>
+                    <div class="flex items-center gap-2">
+                        <button id="expand-all-btn" class="text-sm px-3 py-1 bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-300 rounded">Expand all</button>
+                        <button id="collapse-all-btn" class="text-sm px-3 py-1 bg-gray-50 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded">Collapse all</button>
+                    </div>
+                </div>
+                <div id="attempts-list" class="space-y-4" aria-live="polite">
                     <!-- Attempt items will be injected here -->
                 </div>
             </section>

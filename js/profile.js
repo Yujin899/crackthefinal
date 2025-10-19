@@ -481,7 +481,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     <div class="text-xs text-gray-500 dark:text-gray-400">${attempt.createdAt?.toDate ? attempt.createdAt.toDate().toLocaleString() : ''}</div>
                                 </div>
                                 <div class="flex items-center gap-2">
-                                    <button data-attempt-id="${attempt.id}" class="preview-attempt-btn bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-400 px-3 py-1 rounded hover:bg-blue-100 dark:hover:bg-blue-800 transition-colors">Preview</button>
+                                    <button data-attempt-id="${attempt.id}" aria-label="Open attempt preview" class="preview-attempt-btn bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-400 px-4 py-2 rounded hover:bg-blue-100 dark:hover:bg-blue-800 transition-colors">Preview</button>
                                 </div>
                             `;
                             attemptsWrap.appendChild(aRow);
@@ -598,6 +598,20 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     document.getElementById('attempt-modal-close').addEventListener('click', closeAttemptModal);
+
+    // Expand/Collapse all controls
+    const expandAllBtn = document.getElementById('expand-all-btn');
+    const collapseAllBtn = document.getElementById('collapse-all-btn');
+    function setAllDetails(open) {
+        const container = document.getElementById('attempts-list');
+        if (!container) return;
+        const details = container.querySelectorAll('details');
+        details.forEach(d => {
+            if (open) d.setAttribute('open', ''); else d.removeAttribute('open');
+        });
+    }
+    if (expandAllBtn) expandAllBtn.addEventListener('click', () => setAllDetails(true));
+    if (collapseAllBtn) collapseAllBtn.addEventListener('click', () => setAllDetails(false));
 
     // Auth State Checker (Route Guard)
     onAuthStateChanged(auth, (user) => {
