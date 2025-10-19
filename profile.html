@@ -13,6 +13,12 @@
 
     <style>
         body { font-family: 'Poppins', sans-serif; background-color: #f3fbff; }
+        /* Accordion arrow styling: hide native marker and add rotating SVG arrow */
+        details summary { list-style: none; }
+        details summary::-webkit-details-marker { display: none; }
+        details summary { display: flex; align-items: center; justify-content: space-between; }
+        details summary .ctf-arrow { transition: transform 0.18s ease; display: inline-block; margin-right: 0.5rem; }
+        details[open] summary .ctf-arrow { transform: rotate(90deg); }
     </style>
     <script type="module">
         import Theme from './js/theme.js';

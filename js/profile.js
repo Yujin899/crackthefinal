@@ -431,31 +431,76 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             // render attempts (fetch subject/quiz names as needed)
-            if (attemptsListEl) attemptsListEl.innerHTML = '';
+            // Group attempts by subject -> quiz
+            const grouped = {}; // { subjectId: { name, quizzes: { quizId: { name, attempts: [] } } } }
             for (const attempt of attempts) {
-                const subjName = await fetchSubjectName(attempt.subjectId);
-                const quizName = await fetchQuizName(attempt.subjectId, attempt.quizId);
+                const sid = attempt.subjectId || 'unknown';
+                const qid = attempt.quizId || 'unknown';
+                if (!grouped[sid]) grouped[sid] = { name: await fetchSubjectName(sid), quizzes: {} };
+                if (!grouped[sid].quizzes[qid]) grouped[sid].quizzes[qid] = { name: await fetchQuizName(sid, qid), attempts: [] };
+                grouped[sid].quizzes[qid].attempts.push(attempt);
+            }
 
-                const item = document.createElement('div');
-                item.className = 'p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm flex items-center justify-between';
-                item.innerHTML = `
-                    <div>
-                        <div class="font-semibold dark:text-white">${quizName}</div>
-                        <div class="text-sm text-gray-500 dark:text-gray-400">Subject: ${subjName}</div>
-                        <div class="text-sm text-gray-500 dark:text-gray-400">Score: ${attempt.totalPoints} / ${attempt.maxPoints} — ${attempt.percent}%</div>
-                    </div>
-                    <div class="flex items-center gap-2">
-                        <button data-attempt-id="${attempt.id}" class="preview-attempt-btn bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-400 px-3 py-1 rounded hover:bg-blue-100 dark:hover:bg-blue-800 transition-colors">Preview</button>
-                        <div class="text-xs text-gray-400">${attempt.createdAt?.toDate ? attempt.createdAt.toDate().toLocaleString() : ''}</div>
-                    </div>
-                `;
-                if (attemptsListEl) attemptsListEl.appendChild(item);
+            // Render accordions
+            if (attemptsListEl) {
+                attemptsListEl.innerHTML = '';
+                for (const [sid, sdata] of Object.entries(grouped)) {
+                    const subjectDetails = document.createElement('details');
+                    subjectDetails.className = 'bg-white dark:bg-gray-800 rounded-lg p-3';
+
+                    const subjSummary = document.createElement('summary');
+                    subjSummary.className = 'cursor-pointer font-semibold flex items-center justify-between gap-4';
+                    subjSummary.innerHTML = `<span class="flex items-center gap-3"><span class="ctf-arrow">` +
+                        `<svg width="14" height="14" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" class="text-gray-500 dark:text-gray-300">` +
+                        `<path d="M6 4L14 10L6 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="text-lg">${sdata.name}</span></span><span class="text-sm text-gray-500 dark:text-gray-400">${Object.keys(sdata.quizzes).length} quizzes</span>`;
+                    subjectDetails.appendChild(subjSummary);
+
+                    const quizzesWrap = document.createElement('div');
+                    quizzesWrap.className = 'mt-3 space-y-2';
+
+                    for (const [qid, qdata] of Object.entries(sdata.quizzes)) {
+                        const quizDetails = document.createElement('details');
+                        quizDetails.className = 'bg-gray-50 dark:bg-gray-900/30 rounded-md p-2';
+
+                        const quizSummary = document.createElement('summary');
+                        quizSummary.className = 'cursor-pointer flex items-center justify-between';
+                        quizSummary.innerHTML = `<span class="flex items-center gap-3"><span class="ctf-arrow">` +
+                            `<svg width="12" height="12" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" class="text-gray-500 dark:text-gray-300">` +
+                            `<path d="M6 4L14 10L6 16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="font-medium">${qdata.name}</span></span><span class="text-sm text-gray-500 dark:text-gray-400">${qdata.attempts.length} attempts</span>`;
+                        quizDetails.appendChild(quizSummary);
+
+                        const attemptsWrap = document.createElement('div');
+                        attemptsWrap.className = 'mt-2 space-y-2';
+
+                        for (const attempt of qdata.attempts) {
+                            const aRow = document.createElement('div');
+                            aRow.className = 'p-2 bg-white dark:bg-gray-800 rounded-md flex items-center justify-between shadow-sm';
+                            aRow.innerHTML = `
+                                <div>
+                                    <div class="text-sm dark:text-white font-medium">Score: ${attempt.totalPoints} / ${attempt.maxPoints} — ${attempt.percent}%</div>
+                                    <div class="text-xs text-gray-500 dark:text-gray-400">${attempt.createdAt?.toDate ? attempt.createdAt.toDate().toLocaleString() : ''}</div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button data-attempt-id="${attempt.id}" class="preview-attempt-btn bg-blue-50 dark:bg-blue-900 text-blue-600 dark:text-blue-400 px-3 py-1 rounded hover:bg-blue-100 dark:hover:bg-blue-800 transition-colors">Preview</button>
+                                </div>
+                            `;
+                            attemptsWrap.appendChild(aRow);
+                        }
+
+                        quizDetails.appendChild(attemptsWrap);
+                        quizzesWrap.appendChild(quizDetails);
+                    }
+
+                    subjectDetails.appendChild(quizzesWrap);
+                    attemptsListEl.appendChild(subjectDetails);
+                }
             }
 
             // wire preview buttons
             document.querySelectorAll('.preview-attempt-btn').forEach(btn => {
                 btn.addEventListener('click', async (e) => {
                     const id = btn.getAttribute('data-attempt-id');
+                    // Find attempt by id in the original attempts array
                     const attempt = attempts.find(a => a.id === id);
                     if (attempt) showAttemptModal(attempt);
                 });
