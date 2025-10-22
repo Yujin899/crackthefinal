@@ -136,14 +136,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!currentUser) return null;
     try {
       // compute advanced points (streak, multiplier, bonuses)
-      // Determine if this is the first attempt for this quiz by this user. If so, we'll apply points.
-      const prevAttemptsQuery = query(collection(db, 'users', currentUser.uid, 'attempts'), where('quizId', '==', quizId), limit(1));
-      const prevAttemptsSnap = await getDocs(prevAttemptsQuery);
-      const isFirstAttempt = prevAttemptsSnap.empty;
+      const adv = calculateAdvancedPoints(resultSummary.perQuestion);
 
-  // Pass the full perQuestion objects so the points engine can access options, text and indexes
-  const adv = calculateAdvancedPoints(resultSummary.perQuestion);
-
+      // Build attempt object (do not include serverTimestamp value until saving)
       const attempt = {
         quizId,
         subjectId,
@@ -157,18 +152,29 @@ document.addEventListener('DOMContentLoaded', () => {
         details: adv.details
       };
 
+      // Read user's previous bests BEFORE saving the new attempt so we can compute deltas correctly
+      const bestPrevPointsQuery = query(collection(db, 'users', currentUser.uid, 'attempts'), where('quizId', '==', quizId), orderBy('totalPoints', 'desc'), limit(1));
+      const bestPrevPointsSnap = await getDocs(bestPrevPointsQuery);
+      const prevPoints = bestPrevPointsSnap.empty ? 0 : (typeof bestPrevPointsSnap.docs[0].data().totalPoints === 'number' ? bestPrevPointsSnap.docs[0].data().totalPoints : 0);
+
+
+      // Save the attempt
       const ref = await addDoc(collection(db, 'users', currentUser.uid, 'attempts'), attempt);
 
-      // apply points to user doc only on the first attempt for this quiz
-      if (isFirstAttempt) {
-        try {
-          await applyPointsToUser(db, currentUser.uid, adv.totalPoints, adv.maxStreak);
-        } catch (e) {
-          console.error('Error applying points to user after attempt:', e);
+      // Award points equal to improvement over previous best (delta)
+      try {
+        const delta = adv.totalPoints - prevPoints;
+        if (delta > 0) {
+          await applyPointsToUser(db, currentUser.uid, delta, adv.maxStreak);
+        } else {
+          console.log('No points awarded: current attempt did not improve previous best.');
         }
-      } else {
-        console.log('Points not applied: user has attempted this quiz before.');
+      } catch (e) {
+        console.error('Error applying points to user after attempt:', e);
       }
+
+      // Note: per-user aggregate correctAnswers and per-attempt correctCount are no longer stored.
+      // We derive correct counts on the subject page from percent * totalQuestions to keep Firestore lean.
 
       return ref.id;
     } catch (err) {

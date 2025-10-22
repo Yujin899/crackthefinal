@@ -323,8 +323,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Compute overall analytics
             const totalAttempts = attempts.length;
-            const totalPoints = attempts.reduce((s, a) => s + (a.totalPoints || 0), 0);
-            const avgPercent = Math.round((attempts.reduce((s, a) => s + (a.percent || 0), 0) / totalAttempts) || 0);
+            // Build best-attempt-per-quiz map (keyed by subjectId/quizId)
+            const bestByQuiz = new Map();
+            attempts.forEach(a => {
+                const key = `${a.subjectId || 'unknown'}/${a.quizId || 'unknown'}`;
+                const pct = typeof a.percent === 'number' ? a.percent : (typeof a.percent === 'string' ? parseFloat(a.percent) || 0 : 0);
+                const total = typeof a.totalPoints === 'number' ? a.totalPoints : (typeof a.points === 'number' ? a.points : 0);
+                const max = (typeof a.maxPoints === 'number') ? a.maxPoints : (a.maxPoints ?? null);
+                const existing = bestByQuiz.get(key);
+                if (!existing || pct > existing.percent) {
+                    bestByQuiz.set(key, { percent: Math.round(pct), totalPoints: total, maxPoints: max, createdAt: a.createdAt });
+                }
+            });
+
+            // totalPoints now equals sum of best attempt totalPoints per quiz
+            const totalPoints = Array.from(bestByQuiz.values()).reduce((s, b) => s + (b.totalPoints || 0), 0);
+            // average percent based on best attempts per quiz
+            const avgPercent = Math.round((Array.from(bestByQuiz.values()).reduce((s, b) => s + (b.percent || 0), 0) / Math.max(bestByQuiz.size, 1)) || 0);
 
             // Update basic stats
             if (totalAttemptsEl) totalAttemptsEl.textContent = String(totalAttempts);
@@ -345,8 +360,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Update trend indicators
             if (attemptsTrendEl_local) attemptsTrendEl_local.textContent = `+${thisWeekAttempts} this week`;
-            if (pointsTrendEl_local) pointsTrendEl_local.textContent = `+${attempts.filter(a => a.createdAt?.toDate() >= weekAgo)
-                .reduce((s, a) => s + (a.totalPoints || 0), 0)} this week`;
+            if (pointsTrendEl_local) {
+                try {
+                    // Compute points gained this week as sum of improvements (best now - best before week)
+                    const bestNow = new Map();
+                    const bestBefore = new Map();
+                    attempts.forEach(a => {
+                        const key = `${a.subjectId || 'unknown'}/${a.quizId || 'unknown'}`;
+                        const created = a.createdAt && typeof a.createdAt.toDate === 'function' ? a.createdAt.toDate() : (a.createdAt ? new Date(a.createdAt) : null);
+                        const pts = typeof a.totalPoints === 'number' ? a.totalPoints : (a.points ?? 0);
+                        // best overall
+                        const bn = bestNow.get(key);
+                        if (!bn || pts > bn) bestNow.set(key, pts);
+                        // best before weekAgo
+                        if (created && created < weekAgo) {
+                            const bb = bestBefore.get(key);
+                            if (!bb || pts > bb) bestBefore.set(key, pts);
+                        }
+                    });
+                    let weekGain = 0;
+                    for (const [k, nowPts] of bestNow.entries()) {
+                        const beforePts = bestBefore.get(k) || 0;
+                        const delta = nowPts - beforePts;
+                        if (delta > 0) weekGain += delta;
+                    }
+                    pointsTrendEl_local.textContent = `+${weekGain} this week`;
+                } catch (e) {
+                    pointsTrendEl_local.textContent = `+0 this week`;
+                }
+            }
 
             const thisMonthAvg = Math.round(thisMonthAttempts.reduce((s, a) => s + (a.percent || 0), 0) / thisMonthAttempts.length || 0);
             const lastMonthAvg = Math.round(lastMonthAttempts.reduce((s, a) => s + (a.percent || 0), 0) / lastMonthAttempts.length || 0);

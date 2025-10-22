@@ -117,20 +117,31 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-    // If we have a signed-in user, fetch their attempts for this subject and compute the BEST percent per quiz
-        // We use the highest-ever percent for each quiz so that once a user has met the requirement, the unlock remains permanent.
-        let bestPercentByQuiz = new Map();
+        // If we have a signed-in user, fetch their attempts for this subject and compute the BEST attempt per quiz
+        // We store the highest-percent attempt and include its total/max points so the subject list can show "27/30" etc.
+        let bestAttemptByQuiz = new Map();
         if (user) {
             try {
                 const attemptsQuery = query(collection(db, 'users', user.uid, 'attempts'), where('subjectId', '==', subjectId));
                 const attemptsSnap = await getDocs(attemptsQuery);
-                // accumulate best percent per quiz (max)
-                attemptsSnap.forEach(doc => {
-                    const data = doc.data();
+                // accumulate best attempt per quiz (highest percent)
+                attemptsSnap.forEach(aDoc => {
+                    const data = aDoc.data();
                     const qid = data.quizId;
                     const pct = typeof data.percent === 'number' ? data.percent : (typeof data.percent === 'string' ? parseFloat(data.percent) || 0 : 0);
-                    const prev = bestPercentByQuiz.get(qid) || 0;
-                    if (pct > prev) bestPercentByQuiz.set(qid, Math.round(pct));
+                    const total = (typeof data.totalPoints === 'number') ? data.totalPoints : (typeof data.points === 'number' ? data.points : (data.totalPoints ?? 0));
+                    const max = (typeof data.maxPoints === 'number') ? data.maxPoints : (data.maxPoints ?? null);
+
+                    const questionCountFromDetails = Array.isArray(data.details) ? data.details.length : null;
+                    const prev = bestAttemptByQuiz.get(qid);
+                    if (!prev || pct > prev.percent) {
+                        bestAttemptByQuiz.set(qid, {
+                            percent: Math.round(pct),
+                            totalPoints: total,
+                            maxPoints: max,
+                            questionCount: questionCountFromDetails
+                        });
+                    }
                 });
             } catch (e) {
                 console.error('Error fetching user attempts for subject:', e);
@@ -156,7 +167,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const requiredPercent = typeof quiz.minPointsToUnlock === 'number'
                 ? quiz.minPointsToUnlock
                 : (typeof subjectDoc.data().minPointsToUnlock === 'number' ? subjectDoc.data().minPointsToUnlock : 60);
-            let userBestPercentOnPrev = bestPercentByQuiz.get(quizzes[i - 1]?.id) || 0; // keep for informational uses if needed
+            const prevBest = bestAttemptByQuiz.get(quizzes[i - 1]?.id);
+            let userBestPercentOnPrev = prevBest ? prevBest.percent : 0; // keep for informational uses if needed
 
             // check releaseAt (can be Firestore Timestamp or ISO string)
             let releaseAt = null;
@@ -185,9 +197,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     </a>
                 `;
             } else {
+                // Display best attempt if available
+                const best = bestAttemptByQuiz.get(quizId);
+                let bestHtml = '';
+                if (best) {
+                    // Derive total question count from quiz metadata when available
+                    const totalQuestions = (typeof best.questionCount === 'number' && best.questionCount > 0)
+                        ? best.questionCount
+                        : (quiz.questionCount || quiz.questionsCount || quiz.totalQuestions || quiz.questionTotal || (Array.isArray(quiz.questions) ? quiz.questions.length : null) || null);
+                    if (totalQuestions && typeof best.percent === 'number') {
+                        const correctDerived = Math.round((best.percent / 100) * totalQuestions);
+                        bestHtml = `<div class="text-sm text-gray-600 dark:text-gray-400">${correctDerived}/${totalQuestions}</div>`;
+                    } else if (best.maxPoints) {
+                        bestHtml = `<div class="text-sm text-gray-600 dark:text-gray-400">${best.totalPoints}/${best.maxPoints}</div>`;
+                    } else {
+                        bestHtml = `<div class="text-sm text-gray-600 dark:text-gray-400">${best.percent}%</div>`;
+                    }
+                }
                 quizzesHTML += `
                     <a href="${quizURL}" class="block bg-gray-50 p-4 rounded-lg shadow-md hover:bg-white transition border border-gray-200">
-                        <h3 class="font-semibold text-lg text-slate-900">${quiz.name}</h3>
+                        <div class="flex items-center justify-between">
+                            <h3 class="font-semibold text-lg text-slate-900">${quiz.name}</h3>
+                            ${bestHtml}
+                        </div>
                     </a>
                 `;
             }
