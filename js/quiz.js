@@ -39,18 +39,26 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!currentUser) return null;
     try {
       // Read the most recent attempt for this user/quiz from the user's attempts subcollection
+      // Firestore composite index may be required for orderBy + where. To avoid index requirements
+      // fetch attempts with equality filters and pick the most recent client-side.
       const attemptsQuery = query(
         collection(db, 'users', currentUser.uid, 'attempts'),
-        orderBy('createdAt', 'desc'),
         where('quizId', '==', quizId),
-        where('subjectId', '==', subjectId),
-        limit(1)
+        where('subjectId', '==', subjectId)
       );
-
       const attemptDocs = await getDocs(attemptsQuery);
       if (!attemptDocs.empty) {
-        const attempt = attemptDocs.docs[0].data();
-        return attempt;
+        let latest = null;
+        let latestTs = 0;
+        attemptDocs.forEach(d => {
+          const data = d.data();
+          const ts = data.createdAt && typeof data.createdAt.toMillis === 'function' ? data.createdAt.toMillis() : (typeof data.createdAt === 'number' ? data.createdAt : 0);
+          if (ts > latestTs) {
+            latestTs = ts;
+            latest = data;
+          }
+        });
+        if (latest) return latest;
       }
     } catch (error) {
       console.warn('Error checking previous attempts:', error);
@@ -152,10 +160,17 @@ document.addEventListener('DOMContentLoaded', () => {
         details: adv.details
       };
 
-      // Read user's previous bests BEFORE saving the new attempt so we can compute deltas correctly
-      const bestPrevPointsQuery = query(collection(db, 'users', currentUser.uid, 'attempts'), where('quizId', '==', quizId), orderBy('totalPoints', 'desc'), limit(1));
-      const bestPrevPointsSnap = await getDocs(bestPrevPointsQuery);
-      const prevPoints = bestPrevPointsSnap.empty ? 0 : (typeof bestPrevPointsSnap.docs[0].data().totalPoints === 'number' ? bestPrevPointsSnap.docs[0].data().totalPoints : 0);
+      // Read user's previous attempts for this quiz (no orderBy to avoid index requirements)
+      const prevAttemptsQuery = query(collection(db, 'users', currentUser.uid, 'attempts'), where('quizId', '==', quizId));
+      const prevAttemptsSnap = await getDocs(prevAttemptsQuery);
+      let prevPoints = 0;
+      if (!prevAttemptsSnap.empty) {
+        prevAttemptsSnap.forEach(d => {
+          const data = d.data();
+          const tp = typeof data.totalPoints === 'number' ? data.totalPoints : (typeof data.points === 'number' ? data.points : 0);
+          if (tp > prevPoints) prevPoints = tp;
+        });
+      }
 
 
       // Save the attempt
