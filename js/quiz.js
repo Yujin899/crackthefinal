@@ -69,35 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function loadQuestions() {
     showLoader('Loading quiz...');
 
-    // Check for previous attempts
-    const previousAttempt = await checkPreviousAttempt();
-    if (previousAttempt) {
-      // Add a notice at the top of the quiz (dark-mode friendly)
-      const noticeEl = document.createElement('div');
-      noticeEl.className = 'bg-blue-50 border-l-4 border-blue-500 text-blue-700 p-4 mb-6 rounded dark:bg-blue-900 dark:bg-opacity-80 dark:border-blue-400 dark:text-blue-100';
-      // tolerate either a Firestore Timestamp in `createdAt` or legacy `timestamp` or a raw number
-      const ts = previousAttempt.createdAt || previousAttempt.timestamp;
-      const attemptDate = ts && typeof ts.toDate === 'function'
-        ? ts.toDate().toLocaleDateString()
-        : new Date(ts || Date.now()).toLocaleDateString();
-  // attempt objects previously used `score` but the current format stores `percent`.
-  const score = (typeof previousAttempt.percent === 'number' ? previousAttempt.percent : previousAttempt.score) || 'N/A';
-      noticeEl.innerHTML = `
-        <div class="flex items-start">
-          <div class="flex-shrink-0">
-            <svg class="h-5 w-5 text-blue-400 dark:text-blue-200" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
-              <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
-            </svg>
-          </div>
-          <div class="ml-3">
-            <p class="text-sm text-gray-800 dark:text-gray-100">You've previously taken this quiz on ${attemptDate}.</p>
-            <p class="text-sm mt-1 font-semibold text-blue-700 dark:text-blue-200">Your score was: ${score}%</p>
-            <p class="text-sm mt-1 text-gray-600 dark:text-gray-300">You can take the quiz again to improve your score.</p>
-          </div>
-        </div>
-      `;
-      document.querySelector('main').insertBefore(noticeEl, document.querySelector('main').firstChild);
-    }
+    // (previous-attempt notice removed — quizzes start fresh)
 
     const q = query(collection(db, 'subjects', subjectId, 'quizzes', quizId, 'questions'), orderBy('createdAt'));
     const snapshot = await getDocs(q);
